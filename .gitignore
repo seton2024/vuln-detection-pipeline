@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+
+# VUDENC raw dataset (large Zenodo files — not ours to redistribute)
+data/vudenc/
+
+# Processed splits ARE committed to git (data/processed/ is tracked)
+
+# Trained model weights (can be hundreds of GB)
+models/*.pt
+models/*.bin
+models/*.safetensors
+
+# Generated pipeline outputs
+results/*.json
+results/*.csv
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+tests/
+docs/
+
+scripts/verify_setup.py

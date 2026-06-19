@@ -1,0 +1,15 @@
+torch>=2.0.0
+transformers>=4.40.0
+datasets>=2.18.0
+bandit[toml]>=1.7.8
+pandas>=2.0.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+requests>=2.31.0
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+pytest>=8.0.0
+gitpython>=3.1.40
+ollama>=0.1.0
+anthropic>=0.25.0
+optuna>=3.0.0
