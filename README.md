@@ -9,6 +9,7 @@ New Python file
 
 Stage 0: Bandit (static analysis — free, instant): Sets bandit_flag; always runs
 Stage 1: CodeBERT (fine-tuned transformer model)
+Stage 1.5: Consolidation (get the precise voulnerable section from different windows)
 Stage 2: Local Llama via Ollama (runs localy)
 Stage 3: Claude Haiku via Batch API (paid, opt-in)
 ```
