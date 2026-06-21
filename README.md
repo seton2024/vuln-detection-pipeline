@@ -9,6 +9,7 @@ New Python file
 
 Stage 0: Bandit (static analysis — free, instant): Sets bandit_flag; always runs
 Stage 1: CodeBERT (fine-tuned transformer model)
+Stage 1.5: Consolidation (get the precise voulnerable section from different windows)
 Stage 2: Local Llama via Ollama (runs localy)
 Stage 3: Claude Haiku via Batch API (paid, opt-in)
 ```
@@ -48,3 +49,10 @@ python.exe
 **VUDENC** — Wartschinski et al., 2022, Humboldt-Universität zu Berlin
 https://github.com/LauraWartschinski/VulnerabilityDetection
 
+<<<<<<< HEAD
+=======
+
+what to change today:
+
+Think how to make the labled test data as the train data. how to wor without the bad parts
+>>>>>>> origin/master
