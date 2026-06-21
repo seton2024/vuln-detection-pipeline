@@ -13,3 +13,4 @@ gitpython>=3.1.40
 ollama>=0.1.0
 anthropic>=0.25.0
 optuna>=3.0.0
+matplotlib>=3.7.0

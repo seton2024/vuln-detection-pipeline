@@ -7,8 +7,6 @@ What it does:
   3. Saves results to data/processed/ (21 JSON files)
   4. Commits data/processed/ to git → partner just clones and skips this step
 
-After this runs, VUDENC is never needed again.
-Training and inference read only from data/processed/.
 """
 
 import sys

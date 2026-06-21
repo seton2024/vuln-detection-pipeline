@@ -13,14 +13,26 @@ Flow:
 from typing import List
 
 from pipeline.contract import WindowRecord
-from pipeline import stage0_bandit, stage1_graphcodebert, stage2_llama, stage3_claude
+from pipeline import stage0_bandit, stage1_graphcodebert, stage1_cnn_bilstm, stage2_llama, stage3_claude
 from pipeline.stage15_consolidator import consolidate
 from config import (
+    STAGE1_BACKEND,
     STAGE1_ESCALATION_THRESHOLD,
     STAGE2_SAFE_THRESHOLD,
     STAGE2_ESCALATION_THRESHOLD,
     STAGE3_ENABLED,
 )
+
+# Map the STAGE1_BACKEND config value to the module that implements predict().
+_STAGE1_BACKENDS = {
+    "graphcodebert": stage1_graphcodebert,
+    "cnn_bilstm": stage1_cnn_bilstm,
+}
+
+
+def get_stage1():
+    """Return the Stage 1 module selected by config.STAGE1_BACKEND."""
+    return _STAGE1_BACKENDS.get(STAGE1_BACKEND, stage1_graphcodebert)
 
 
 def run_pipeline(records: List[WindowRecord]) -> List[WindowRecord]:
@@ -34,9 +46,10 @@ def run_pipeline(records: List[WindowRecord]) -> List[WindowRecord]:
     for record in records:
         stage0_bandit.run_bandit(record)
 
-    # Stage 1: GraphCodeBERT — always runs, sets stage1_score.
+    # Stage 1: the backend selected by config.STAGE1_BACKEND — sets stage1_score.
+    stage1 = get_stage1()
     for record in records:
-        stage1_graphcodebert.predict(record)
+        stage1.predict(record)
 
     # Consolidation: merge consecutive flagged windows before the expensive stages.
     consolidated = consolidate(records)

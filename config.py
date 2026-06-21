@@ -29,8 +29,17 @@ STAGE2_ESCALATION_THRESHOLD = 0.9
 # Stage 3 (Claude API) costs money per call. Default OFF. Turn on with: STAGE3_ENABLED=1
 STAGE3_ENABLED = os.getenv("STAGE3_ENABLED", "0") == "1"
 
-# Stage 1 model
+# Stage 1 model (the GraphCodeBERT checkpoint used both as a classifier and as a
+# frozen feature extractor for the CNN-BiLSTM head).
 STAGE1_MODEL = "microsoft/graphcodebert-base"
+
+# Which Stage 1 backend predict() uses: "graphcodebert" or "cnn_bilstm".
+STAGE1_BACKEND = "cnn_bilstm"
+
+# CNN-BiLSTM head hyperparameters, overwritten for each vuln type
+STAGE1_HIDDEN_DIM = 128     # BiLSTM hidden size (per direction)
+STAGE1_CNN_FILTERS = 64     # filters per convolution width (2,3,4,5)
+STAGE1_DROPOUT = 0.3        # dropout before the final linear layer
 
 # Max chars of code sent to Llama (Stage 2) — a center slice of the consolidated window.
 STAGE2_WINDOW_CHARS = 300

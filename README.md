@@ -34,14 +34,12 @@ pip install -r requirements.txt
 # 2. Download VUDENC dataset (needed for training, not for inference)
 python scripts/setup_data.py
 
-# 3. Smoke test — runs without VUDENC
-python scripts/verify_setup.py
+# 3. train the models
+python scripts/train_stage1.py
 
-# 4. Run tests
-pytest tests/
+#4. Run the pypline
+python.exe 
 
-# 5. Enable Stage 3 (Claude API) — costs money, disabled by default
-STAGE3_ENABLED=1 python your_script.py
 ```
 
 
@@ -50,7 +48,3 @@ STAGE3_ENABLED=1 python your_script.py
 **VUDENC** — Wartschinski et al., 2022, Humboldt-Universität zu Berlin
 https://github.com/LauraWartschinski/VulnerabilityDetection
 
-
-what to change today:
-
-Think how to make the labled test data as the train data. how to wor without the bad parts

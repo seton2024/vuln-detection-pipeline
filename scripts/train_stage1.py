@@ -1,15 +1,24 @@
 """
 Stage 1 training with Bayesian hyperparameter search (Optuna).
 
-For EACH of the 7 vulnerability types this script:
-  1. Loads the processed train/val/test splits from data/processed/.
-  2. Runs an Optuna study (Bayesian optimization via the TPE sampler) that
-     tries several hyperparameter combinations ("experiments"/trials).
-  3. Each trial fine-tunes GraphCodeBERT and measures VALIDATION F1.
-  4. Whenever a trial beats the best so far, its weights are saved to
-     models/graphcodebert_{type}.pt  (so the pipeline's predict() picks them up).
-  5. After the search, the best model is evaluated once on the TEST split.
+Trains EITHER backend (choose with --model):
+  - graphcodebert : fine-tune GraphCodeBERT end-to-end
+  - cnn_bilstm    : train a CNN-BiLSTM head on FROZEN GraphCodeBERT embeddings
 
+
+Outputs:
+  - best model per type  -> models/{backend}_{type}.pt          (saved on improvement)
+  - best hyperparameters -> results/best_hyperparams_{type}.json
+  - full experiment log  -> results/stage1_experiments.json     (crash-safe)
+  - readable summary     -> results/stage1_summary.txt
+
+USAGE
+  python scripts/train_stage1.py                              # cnn_bilstm, all types
+  python scripts/train_stage1.py --model graphcodebert        # the other backend
+  python scripts/train_stage1.py --types sql --hours-per-type 6
+  python scripts/train_stage1.py --model cnn_bilstm --types sql xss
+
+Requires processed data (scripts/setup_data.py) and optuna (pip install optuna).
 """
 
 import argparse
@@ -22,43 +31,49 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config import STAGE1_MODEL, MODELS_DIR, RESULTS_DIR, VULN_TYPES
+from config import (
+    STAGE1_MODEL, MODELS_DIR, RESULTS_DIR, VULN_TYPES,
+    STAGE1_HIDDEN_DIM, STAGE1_CNN_FILTERS, STAGE1_DROPOUT,
+)
 
 
-# ---------------------------------------------------------------------------
-# Argument parsing
-# ---------------------------------------------------------------------------
+
+# Arguments
+
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Stage 1 GraphCodeBERT hyperparameter search.")
+    p = argparse.ArgumentParser(description="Stage 1 hyperparameter search (GraphCodeBERT or CNN-BiLSTM).")
+    p.add_argument("--model", choices=["graphcodebert", "cnn_bilstm"], default="cnn_bilstm",
+                   help="Which Stage 1 backend to train (default: cnn_bilstm).")
     p.add_argument("--types", nargs="+", default=VULN_TYPES,
                    help="Which vulnerability types to train (default: all 7).")
-    p.add_argument("--trials", type=int, default=40,
-                   help="Max trials per type (the time budget usually stops you first).")
-    p.add_argument("--hours-per-type", type=float, default=3.0,
-                   help="Time budget per type in hours (0 = no time limit).")
-    p.add_argument("--max-train-samples", type=int, default=4000,
-                   help="Cap on training windows per trial (class-balanced subsample).")
+    p.add_argument("--hours-per-type", type=float, default=None,
+                   help="Time budget per type in hours (default: 1 for cnn_bilstm, 3 for graphcodebert).")
+    p.add_argument("--max-train-samples", type=int, default=6000,
+                   help="Cap on training windows per type (class-balanced subsample).")
     p.add_argument("--max-eval-samples", type=int, default=2000,
-                   help="Cap on validation windows used to score each trial.")
+                   help="Cap on validation windows used to score trials.")
     p.add_argument("--max-length", type=int, default=256,
-                   help="Max tokens fed to the model (lower = faster).")
+                   help="Max tokens fed to the encoder (lower = faster).")
+    p.add_argument("--cnn-epochs", type=int, default=8,
+                   help="Epochs per cnn_bilstm trial (epochs are not searched for that model).")
+    p.add_argument("--beta", type=float, default=2.0,
+                   help="F-beta to optimize. >1 favors recall (catch all vulns) over precision. Default 2.")
     p.add_argument("--save-all-trials", action="store_true",
-                   help="Also save every trial's weights under models/trials/.")
-    p.add_argument("--results-file", default=os.path.join(RESULTS_DIR, "stage1_experiments.json"),
-                   help="Where the full results JSON is written.")
+                   help="(graphcodebert only) also save every trial's weights under models/trials/.")
+    p.add_argument("--results-file", default=os.path.join(RESULTS_DIR, "stage1_experiments.json"))
     p.add_argument("--storage", default=os.path.join(RESULTS_DIR, "optuna_stage1.db"),
                    help="SQLite file for Optuna (enables resume). Empty string = in-memory.")
-    p.add_argument("--seed", type=int, default=42, help="Random seed.")
+    p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
 
 
-# ---------------------------------------------------------------------------
-# Data helpers
-# ---------------------------------------------------------------------------
+
+# Shared helpers
+
 
 def _subsample(records, max_n, seed):
-    """Return at most max_n records, keeping the vulnerable/safe ratio roughly intact."""
+    #Return at most max_n records, keeping the vulnerable/safe ratio roughly intact.
     import random
     if max_n is None or len(records) <= max_n:
         return list(records)
@@ -66,7 +81,6 @@ def _subsample(records, max_n, seed):
     pos = [r for r in records if r.label == 1]
     neg = [r for r in records if r.label == 0]
     if not pos or not neg:
-        # single class — just take a flat sample
         return rng.sample(list(records), max_n)
     ratio = len(pos) / len(records)
     n_pos = min(len(pos), max(1, round(max_n * ratio)))
@@ -76,78 +90,36 @@ def _subsample(records, max_n, seed):
     return sample
 
 
-# ---------------------------------------------------------------------------
-# Train / evaluate one model
-# ---------------------------------------------------------------------------
-
-def _train_model(train_recs, hp, device, max_length):
-    """Fine-tune a fresh GraphCodeBERT with the given hyperparameters. Returns (tokenizer, model)."""
-    import random
-    import torch
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
-    tokenizer = AutoTokenizer.from_pretrained(STAGE1_MODEL)
-    model = AutoModelForSequenceClassification.from_pretrained(STAGE1_MODEL, num_labels=2).to(device)
-    model.train()
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=hp["learning_rate"], weight_decay=hp["weight_decay"]
-    )
-
-    texts = [r.code for r in train_recs]
-    labels = [int(r.label) for r in train_recs]
-    bs = hp["batch_size"]
-
-    for epoch in range(hp["epochs"]):
-        order = list(range(len(texts)))
-        random.Random(epoch).shuffle(order)  # reshuffle each epoch
-        for start in range(0, len(order), bs):
-            idx = order[start:start + bs]
-            batch_texts = [texts[k] for k in idx]
-            batch_labels = torch.tensor([labels[k] for k in idx]).to(device)
-            enc = tokenizer(
-                batch_texts, truncation=True, max_length=max_length,
-                padding=True, return_tensors="pt",
-            ).to(device)
-            optimizer.zero_grad()
-            outputs = model(**enc, labels=batch_labels)
-            outputs.loss.backward()
-            optimizer.step()
-
-    return tokenizer, model
+def _fbeta(precision, recall, beta):
+    b2 = beta * beta
+    denom = b2 * precision + recall
+    return ((1 + b2) * precision * recall / denom) if denom > 0 else 0.0
 
 
-def _evaluate(tokenizer, model, recs, device, max_length, batch_size=32):
-    """Run the model over recs and return F1/precision/recall/accuracy (all floats)."""
-    import torch
+def _eval_probs(probs, labels, beta=2.0):
+    """
+    Maximize F-beta (beta>1 favors recall, i.e. min FN s while keeping some precision) and return all metrics
+    AT that threshold: f2, f1, precision, recall, accuracy, threshold, n.
+    """
     from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
+    best = None
+    for i in range(5, 96, 5):                      # thresholds 0.05 .. 0.95
+        th = i / 100.0
+        preds = [1 if p >= th else 0 for p in probs]
+        prec = precision_score(labels, preds, zero_division=0)
+        rec = recall_score(labels, preds, zero_division=0)
+        fb = _fbeta(prec, rec, beta)
+        if best is None or fb > best["f2"]:
+            best = {
+                "threshold": th, "f2": float(fb),
+                "f1": float(f1_score(labels, preds, zero_division=0)),
+                "precision": float(prec), "recall": float(rec),
+                "accuracy": float(accuracy_score(labels, preds)),
+                "n": len(labels),
+            }
+    return best or {"threshold": 0.5, "f2": 0.0, "f1": 0.0, "precision": 0.0,
+                    "recall": 0.0, "accuracy": 0.0, "n": len(labels)}
 
-    model.eval()
-    y_true, y_pred = [], []
-    with torch.no_grad():
-        for start in range(0, len(recs), batch_size):
-            batch = recs[start:start + batch_size]
-            texts = [r.code for r in batch]
-            enc = tokenizer(
-                texts, truncation=True, max_length=max_length,
-                padding=True, return_tensors="pt",
-            ).to(device)
-            logits = model(**enc).logits
-            preds = torch.argmax(logits, dim=-1).cpu().tolist()
-            y_pred.extend(preds)
-            y_true.extend(int(r.label) for r in batch)
-
-    return {
-        "f1": float(f1_score(y_true, y_pred, zero_division=0)),
-        "precision": float(precision_score(y_true, y_pred, zero_division=0)),
-        "recall": float(recall_score(y_true, y_pred, zero_division=0)),
-        "accuracy": float(accuracy_score(y_true, y_pred)),
-        "n": len(recs),
-    }
-
-
-# ---------------------------------------------------------------------------
-# Results persistence
-# ---------------------------------------------------------------------------
 
 def _save_results(path, results):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -157,23 +129,88 @@ def _save_results(path, results):
 
 def _cleanup(*objs):
     import torch
-    for o in objs:
-        del o
+    for _ in objs:
+        pass
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
 
-# ---------------------------------------------------------------------------
-# One Optuna study per vulnerability type
-# ---------------------------------------------------------------------------
+# GraphCodeBERT backend (fine-tune end-to-end) old model
+
+def _gcb_suggest(trial):
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
+        "batch_size": trial.suggest_categorical("batch_size", [8, 16]),
+        "epochs": trial.suggest_int("epochs", 1, 3),
+        "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
+    }
+
+
+def _gcb_train(train_recs, hp, device, max_length):
+    import random
+    import torch
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    tokenizer = AutoTokenizer.from_pretrained(STAGE1_MODEL)
+    model = AutoModelForSequenceClassification.from_pretrained(STAGE1_MODEL, num_labels=2).to(device)
+    model.train()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=hp["learning_rate"], weight_decay=hp["weight_decay"])
+    texts = [r.code for r in train_recs]
+    labels = [int(r.label) for r in train_recs]
+    bs = hp["batch_size"]
+    for epoch in range(hp["epochs"]):
+        order = list(range(len(texts)))
+        random.Random(epoch).shuffle(order)
+        for start in range(0, len(order), bs):
+            idx = order[start:start + bs]
+            batch_labels = torch.tensor([labels[k] for k in idx]).to(device)
+            enc = tokenizer([texts[k] for k in idx], truncation=True, max_length=max_length,
+                            padding=True, return_tensors="pt").to(device)
+            optimizer.zero_grad()
+            out = model(**enc, labels=batch_labels)
+            out.loss.backward()
+            optimizer.step()
+    return tokenizer, model
+
+
+def _gcb_probs(tokenizer, model, recs, device, max_length, batch_size=32):
+    """Return (probs_of_class_1, labels) so the caller can threshold-select."""
+    import torch
+    model.eval()
+    probs, labels = [], []
+    with torch.no_grad():
+        for start in range(0, len(recs), batch_size):
+            batch = recs[start:start + batch_size]
+            enc = tokenizer([r.code for r in batch], truncation=True, max_length=max_length,
+                            padding=True, return_tensors="pt").to(device)
+            p = torch.softmax(model(**enc).logits, dim=-1)[:, 1].cpu().tolist()
+            probs.extend(p)
+            labels.extend(int(r.label) for r in batch)
+    return probs, labels
+
+
+
+# CNN-BiLSTM backend (frozen GraphCodeBERT + trained head), prefered model
+
+def _cnn_suggest(trial):
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True),
+        "hidden_dim": trial.suggest_categorical("hidden_dim", [64, 128, 256]),
+        "cnn_filters": trial.suggest_categorical("cnn_filters", [32, 64, 128]),
+        "dropout": trial.suggest_float("dropout", 0.1, 0.5),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64]),
+        "lstm_layers": trial.suggest_categorical("lstm_layers", [1, 2]),
+    }
+
+
+# One study per type
+
 
 def run_study_for_type(vuln_type, args, device, results, optuna):
     from data.loader import load_vudenc
 
-    print(f"\n{'=' * 70}\n[{vuln_type}] starting\n{'=' * 70}", flush=True)
+    print(f"\n{'=' * 70}\n[{vuln_type}] starting ({args.model})\n{'=' * 70}", flush=True)
 
-    # --- load data ---
     try:
         train, val, test = load_vudenc(vuln_type)
     except FileNotFoundError as e:
@@ -183,186 +220,285 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
         return
 
     train = _subsample(train, args.max_train_samples, seed=args.seed)
-    val_eval = _subsample(val, args.max_eval_samples, seed=args.seed)
+    val_sub = _subsample(val, args.max_eval_samples, seed=args.seed)
+    test_sub = _subsample(test, max(args.max_eval_samples * 3, args.max_eval_samples), seed=7)
 
-    train_classes = set(r.label for r in train)
-    if train_classes != {0, 1}:
-        print(f"[{vuln_type}] SKIP: training subsample has classes {train_classes} (need both 0 and 1).",
-              flush=True)
-        results["types"][vuln_type] = {"status": f"skipped: single-class train ({train_classes})"}
+    if set(r.label for r in train) != {0, 1}:
+        print(f"[{vuln_type}] SKIP: training subsample is single-class.", flush=True)
+        results["types"][vuln_type] = {"status": "skipped: single-class train"}
         _save_results(args.results_file, results)
         return
 
-    model_path = os.path.join(MODELS_DIR, f"graphcodebert_{vuln_type}.pt")
-    state = {"best_f1": -1.0, "best_params": None, "best_trial": None}
-
+    model_path = os.path.join(MODELS_DIR, f"{args.model}_{vuln_type}.pt")
+    state = {"best_score": -1.0, "best_threshold": 0.5}
     results["types"][vuln_type] = {
-        "status": "running",
-        "n_train": len(train), "n_val": len(val_eval), "n_test": len(test),
+        "status": "running", "model": args.model,
+        "n_train": len(train), "n_val": len(val_sub), "n_test": len(test_sub),
         "trials": [], "model_path": model_path, "best": None, "test": None,
     }
     type_results = results["types"][vuln_type]
 
-    # --- Optuna study (resumable via SQLite storage) ---
+    # --- precompute frozen embeddings once (CNN-BiLSTM only) ---
+    cnn = None
+    train_emb = val_emb = train_lab = val_lab = None
+    if args.model == "cnn_bilstm":
+        from pipeline import stage1_cnn_bilstm as cnn
+        print(f"[{vuln_type}] embedding train/val with frozen GraphCodeBERT (one-time)...", flush=True)
+        train_emb, train_lab = cnn.embed_records(train, device, args.max_length, label="train")
+        val_emb, val_lab = cnn.embed_records(val_sub, device, args.max_length, label="val")
+
+        # Short initial run to confirm the model works before the real study.
+        try:
+            hp0 = {"learning_rate": 1e-3, "hidden_dim": STAGE1_HIDDEN_DIM,
+                   "cnn_filters": STAGE1_CNN_FILTERS, "dropout": STAGE1_DROPOUT, "lstm_layers": 2}
+            probe = cnn.build_classifier(hp0, device)
+            cnn.fit_classifier(probe, train_emb[:64], train_lab[:64], hp0, epochs=1, batch_size=16, device=device)
+            print(f"[{vuln_type}] sanity check OK — CNN-BiLSTM trains without error.", flush=True)
+            del probe
+        except Exception as e:
+            print(f"[{vuln_type}] SANITY CHECK FAILED: {e}", flush=True)
+            type_results["status"] = f"error: sanity check failed ({e})"
+            _save_results(args.results_file, results)
+            return
+
+    # --- Optuna study ---
+    pruner = optuna.pruners.MedianPruner() if args.model == "cnn_bilstm" else optuna.pruners.NopPruner()
     storage = f"sqlite:///{args.storage}" if args.storage else None
+    # Study name encodes the objective so changing beta starts a FRESH search
+    # rather than mixing with trials scored under a different metric.
     study = optuna.create_study(
         direction="maximize",
-        study_name=f"stage1_{vuln_type}",
+        study_name=f"stage1_{args.model}_{vuln_type}_F{args.beta:g}",
         sampler=optuna.samplers.TPESampler(seed=args.seed),
+        pruner=pruner,
         storage=storage,
         load_if_exists=True,
     )
-    # If resuming a study that already has results, restore the best score so we
-    # don't overwrite an already-good saved model with a worse one.
-    if study.trials and study.best_value is not None:
-        state["best_f1"] = study.best_value
-        state["best_trial"] = study.best_trial.number
-        state["best_params"] = dict(study.best_trial.params)
+    try:
+        if study.best_value is not None:
+            state["best_score"] = study.best_value
+    except ValueError:
+        pass  # no completed trials yet
+
+    empty = {"f2": 0.0, "f1": 0.0, "precision": 0.0, "recall": 0.0,
+             "accuracy": 0.0, "threshold": 0.5, "n": 0}
 
     def objective(trial):
-        hp = {
-            "learning_rate": trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
-            "batch_size": trial.suggest_categorical("batch_size", [8, 16]),
-            "epochs": trial.suggest_int("epochs", 1, 3),
-            "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
-        }
         t0 = time.time()
-        try:
-            tokenizer, model = _train_model(train, hp, device, args.max_length)
-            metrics = _evaluate(tokenizer, model, val_eval, device, args.max_length)
-            f1 = metrics["f1"]
-
-            improved = f1 > state["best_f1"]
-            if improved:
-                state.update(best_f1=f1, best_params=hp, best_trial=trial.number)
-                os.makedirs(MODELS_DIR, exist_ok=True)
-                import torch
-                torch.save(model.state_dict(), model_path)
-
-            if args.save_all_trials:
-                import torch
-                trials_dir = os.path.join(MODELS_DIR, "trials")
-                os.makedirs(trials_dir, exist_ok=True)
-                torch.save(model.state_dict(),
-                           os.path.join(trials_dir, f"graphcodebert_{vuln_type}_trial{trial.number}.pt"))
-
-            _cleanup(model, tokenizer)
-        except Exception as e:
-            print(f"[{vuln_type}] trial {trial.number} FAILED: {e}", flush=True)
-            metrics = {"f1": 0.0, "precision": 0.0, "recall": 0.0, "accuracy": 0.0, "n": len(val_eval)}
-            f1 = 0.0
-            improved = False
+        pruned = False
+        if args.model == "cnn_bilstm":
+            hp = _cnn_suggest(trial)
+            try:
+                classifier = cnn.build_classifier(hp, device)
+                cnn.fit_classifier(
+                    classifier, train_emb, train_lab, hp,
+                    epochs=args.cnn_epochs, batch_size=hp["batch_size"], device=device,
+                    val_emb=val_emb, val_labels=val_lab, trial=trial, optuna_mod=optuna,
+                    beta=args.beta, verbose=True, label=f"trial {trial.number}",
+                )
+                probs = cnn.run_classifier(classifier, val_emb, device)
+                metrics = _eval_probs(probs, val_lab, args.beta)
+                score = metrics["f2"]
+                if score > state["best_score"]:
+                    state["best_score"] = score
+                    state["best_threshold"] = metrics["threshold"]
+                    cnn.save_checkpoint(model_path, classifier, hp, args.max_length,
+                                        threshold=metrics["threshold"])
+                _cleanup(classifier)
+            except optuna.TrialPruned:
+                pruned, metrics, score = True, empty, 0.0
+            except Exception as e:
+                print(f"[{vuln_type}] trial {trial.number} FAILED: {e}", flush=True)
+                metrics, score = empty, 0.0
+        else:
+            hp = _gcb_suggest(trial)
+            try:
+                tokenizer, model = _gcb_train(train, hp, device, args.max_length)
+                probs, labels = _gcb_probs(tokenizer, model, val_sub, device, args.max_length)
+                metrics = _eval_probs(probs, labels, args.beta)
+                score = metrics["f2"]
+                if score > state["best_score"]:
+                    state["best_score"] = score
+                    state["best_threshold"] = metrics["threshold"]
+                    import torch
+                    os.makedirs(MODELS_DIR, exist_ok=True)
+                    torch.save(model.state_dict(), model_path)
+                _cleanup(model, tokenizer)
+            except Exception as e:
+                print(f"[{vuln_type}] trial {trial.number} FAILED: {e}", flush=True)
+                metrics, score = empty, 0.0
 
         secs = round(time.time() - t0, 1)
         type_results["trials"].append({
-            "number": trial.number,
-            "params": hp,
+            "number": trial.number, "params": hp,
+            "val_f2": round(metrics["f2"], 4),
             "val_f1": round(metrics["f1"], 4),
             "val_precision": round(metrics["precision"], 4),
             "val_recall": round(metrics["recall"], 4),
-            "seconds": secs,
-            "improved": improved,
+            "val_accuracy": round(metrics["accuracy"], 4),
+            "threshold": metrics["threshold"],
+            "seconds": secs, "pruned": pruned,
         })
-        type_results["best"] = {
-            "trial": state["best_trial"], "params": state["best_params"],
-            "val_f1": round(state["best_f1"], 4),
-        }
-        _save_results(args.results_file, results)  # crash-safe after every trial
+        _save_results(args.results_file, results)
+        tag = " PRUNED" if pruned else (" <-- BEST" if score >= state["best_score"] and not pruned else "")
+        print(f"[{vuln_type}] trial {trial.number}: F{args.beta:g}={score:.3f} "
+              f"rec={metrics['recall']:.3f} prec={metrics['precision']:.3f} "
+              f"acc={metrics['accuracy']:.3f} th={metrics['threshold']}  "
+              f"{_fmt_params(hp)}  ({secs:.0f}s){tag}", flush=True)
 
-        star = "  <-- BEST" if improved else ""
-        print(f"[{vuln_type}] trial {trial.number}: val_f1={f1:.3f}  "
-              f"lr={hp['learning_rate']:.1e} bs={hp['batch_size']} "
-              f"ep={hp['epochs']} wd={hp['weight_decay']:.3f}  ({secs:.0f}s){star}", flush=True)
-        return f1
+        if pruned:
+            raise optuna.TrialPruned()
+        return score
 
-    timeout = args.hours_per_type * 3600 if args.hours_per_type and args.hours_per_type > 0 else None
+    hours = args.hours_per_type
+    if hours is None:
+        hours = 1.0 if args.model == "cnn_bilstm" else 3.0
+    timeout = hours * 3600 if hours > 0 else None
     study.optimize(objective, n_trials=args.trials, timeout=timeout)
 
-    # --- final: evaluate the best saved model on the full test split ---
-    test_metrics = None
-    if os.path.exists(model_path) and len(test) > 0:
-        try:
-            import torch
+    # free embeddings before the test pass to reduce peak memory
+    train_emb = val_emb = None
+    _cleanup()
+
+    # --- best hyperparameters ---
+    best_params = None
+    best_value = None
+    try:
+        best_params = dict(study.best_trial.params)
+        best_value = float(study.best_value)
+    except (ValueError, AttributeError):
+        pass
+    type_results["best"] = {"params": best_params,
+                            "val_f2": round(best_value, 4) if best_value is not None else None,
+                            "threshold": state["best_threshold"]}
+    bh_path = os.path.join(RESULTS_DIR, f"best_hyperparams_{vuln_type}.json")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    with open(bh_path, "w", encoding="utf-8") as f:
+        json.dump({"vuln_type": vuln_type, "model": args.model,
+                   "objective": f"F{args.beta:g}", "best_val_f2": best_value,
+                   "best_threshold": state["best_threshold"],
+                   "best_params": best_params, "n_trials": len(study.trials)}, f, indent=2)
+    print(f"[{vuln_type}] best params -> {best_params}  "
+          f"(val_F{args.beta:g}={best_value}, threshold={state['best_threshold']})")
+    print(f"[{vuln_type}] saved -> {bh_path}")
+
+    # --- final test evaluation at the threshold chosen on validation ---
+    test_metrics = _evaluate_best_on_test(args, vuln_type, model_path, test_sub, device, cnn,
+                                          state["best_threshold"])
+    type_results["status"] = "done"
+    type_results["test"] = test_metrics
+    _save_results(args.results_file, results)
+
+    if test_metrics:
+        print(f"[{vuln_type}] DONE  best_val_F{args.beta:g}={state['best_score']:.3f}  "
+              f"TEST: F{args.beta:g}={test_metrics['f2']:.3f} recall={test_metrics['recall']:.3f} "
+              f"prec={test_metrics['precision']:.3f} acc={test_metrics['accuracy']:.3f} "
+              f"(threshold={test_metrics['threshold']})", flush=True)
+    else:
+        print(f"[{vuln_type}] DONE  best_val_F{args.beta:g}={state['best_score']:.3f}  (no test metrics)", flush=True)
+
+
+def _metrics_at(probs, labels, threshold, beta=2.0):
+    """All metrics at a FIXED threshold (the one chosen on validation)."""
+    from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
+    preds = [1 if p >= threshold else 0 for p in probs]
+    prec = precision_score(labels, preds, zero_division=0)
+    rec = recall_score(labels, preds, zero_division=0)
+    return {"threshold": threshold, "f2": _fbeta(prec, rec, beta),
+            "f1": float(f1_score(labels, preds, zero_division=0)),
+            "precision": float(prec), "recall": float(rec),
+            "accuracy": float(accuracy_score(labels, preds)), "n": len(labels)}
+
+
+def _evaluate_best_on_test(args, vuln_type, model_path, test_recs, device, cnn, threshold):
+    if not os.path.exists(model_path) or not test_recs:
+        return None
+    try:
+        import torch
+        if args.model == "cnn_bilstm":
+            ckpt = torch.load(model_path, map_location=device)
+            classifier = cnn.build_classifier(ckpt["hp"], device)
+            classifier.load_state_dict(ckpt["state_dict"])
+            test_emb, test_lab = cnn.embed_records(test_recs, device, args.max_length, label="test")
+            probs = cnn.run_classifier(classifier, test_emb, device)
+            return _metrics_at(probs, test_lab, threshold, args.beta)
+        else:
             from transformers import AutoTokenizer, AutoModelForSequenceClassification
             tokenizer = AutoTokenizer.from_pretrained(STAGE1_MODEL)
             model = AutoModelForSequenceClassification.from_pretrained(STAGE1_MODEL, num_labels=2)
             model.load_state_dict(torch.load(model_path, map_location=device))
             model.to(device)
-            test_eval = _subsample(test, max(args.max_eval_samples * 3, args.max_eval_samples), seed=7)
-            test_metrics = _evaluate(tokenizer, model, test_eval, device, args.max_length)
-            _cleanup(model, tokenizer)
-        except Exception as e:
-            print(f"[{vuln_type}] test evaluation failed: {e}", flush=True)
-
-    type_results["status"] = "done"
-    type_results["test"] = test_metrics
-    _save_results(args.results_file, results)
-
-    best_f1 = state["best_f1"]
-    test_f1 = test_metrics["f1"] if test_metrics else float("nan")
-    print(f"[{vuln_type}] DONE  best_val_f1={best_f1:.3f}  test_f1={test_f1:.3f}", flush=True)
+            probs, labels = _gcb_probs(tokenizer, model, test_recs, device, args.max_length)
+            return _metrics_at(probs, labels, threshold, args.beta)
+    except Exception as e:
+        print(f"[{vuln_type}] test evaluation failed: {e}", flush=True)
+        return None
 
 
-# ---------------------------------------------------------------------------
+
 # Summary
-# ---------------------------------------------------------------------------
+
+
+def _fmt_params(p):
+    if not p:
+        return "-"
+    parts = []
+    for k, v in p.items():
+        if isinstance(v, float):
+            parts.append(f"{k}={v:.2e}" if v < 0.01 else f"{k}={v:.3g}")
+        else:
+            parts.append(f"{k}={v}")
+    return " ".join(parts)
+
+
+def _fmt(x):
+    return f"{x:.3f}" if isinstance(x, (int, float)) else "-"
+
 
 def build_summary(results) -> str:
-    lines = []
-    lines.append("=" * 78)
-    lines.append("STAGE 1 — HYPERPARAMETER SEARCH SUMMARY")
-    lines.append("=" * 78)
-
-    # One detailed block per type.
+    beta = results.get("config", {}).get("beta", 2.0)
+    fb = f"F{beta:g}"
+    lines = ["=" * 96,
+             f"STAGE 1 SEARCH SUMMARY  (model: {results.get('model','?')}, objective: {fb} — recall-favoring)",
+             "=" * 96]
     for vt, info in results["types"].items():
         lines.append(f"\n### {vt}  —  {info.get('status', '?')}")
-        trials = info.get("trials") or []
-        if trials:
-            lines.append(f"  {'trial':>5} {'val_f1':>7} {'prec':>6} {'rec':>6} "
-                         f"{'lr':>9} {'bs':>3} {'ep':>3} {'wd':>6} {'sec':>6}")
-            for t in trials:
-                p = t["params"]
-                lines.append(
-                    f"  {t['number']:>5} {t['val_f1']:>7.3f} {t['val_precision']:>6.3f} "
-                    f"{t['val_recall']:>6.3f} {p['learning_rate']:>9.1e} {p['batch_size']:>3} "
-                    f"{p['epochs']:>3} {p['weight_decay']:>6.3f} {t['seconds']:>6.0f}"
-                    + ("  *" if t.get("improved") else "")
-                )
-        best = info.get("best")
-        if best and best.get("params"):
-            lines.append(f"  BEST: trial {best['trial']}  val_f1={best['val_f1']:.3f}  params={best['params']}")
+        for t in (info.get("trials") or []):
+            tag = " PRUNED" if t.get("pruned") else ""
+            score = t.get("val_f2", t.get("val_f1", 0.0))
+            lines.append(f"  trial {t['number']:>3}  {fb}={score:.3f} "
+                         f"rec={t.get('val_recall', 0):.3f} prec={t.get('val_precision', 0):.3f} "
+                         f"acc={t.get('val_accuracy', 0):.3f} th={t.get('threshold', '-')}  "
+                         f"{_fmt_params(t['params'])}  ({t['seconds']:.0f}s){tag}")
+        best = info.get("best") or {}
+        if best.get("params"):
+            lines.append(f"  BEST: val_{fb}={best.get('val_f2')}  threshold={best.get('threshold')}  "
+                         f"{_fmt_params(best['params'])}")
         test = info.get("test")
         if test:
-            lines.append(f"  TEST: f1={test['f1']:.3f}  precision={test['precision']:.3f}  "
-                         f"recall={test['recall']:.3f}  acc={test['accuracy']:.3f}  (n={test['n']})")
+            lines.append(f"  TEST @th={test.get('threshold')}: {fb}={test['f2']:.3f}  recall={test['recall']:.3f}  "
+                         f"precision={test['precision']:.3f}  f1={test['f1']:.3f}  acc={test['accuracy']:.3f}  (n={test['n']})")
 
-    # One-line overview at the bottom.
-    lines.append("\n" + "-" * 78)
-    lines.append(f"{'type':>22} {'best_val_f1':>12} {'test_f1':>9} {'trials':>7}")
-    lines.append("-" * 78)
+    lines.append("\n" + "-" * 96)
+    lines.append(f"{'type':>22} {'val_'+fb:>9} {'test_'+fb:>9} {'test_rec':>9} {'test_prec':>10} {'test_acc':>9} {'trials':>7}")
+    lines.append("-" * 96)
     for vt, info in results["types"].items():
         best = info.get("best") or {}
         test = info.get("test") or {}
-        bf1 = best.get("val_f1")
-        tf1 = test.get("f1")
-        lines.append(
-            f"{vt:>22} "
-            f"{(f'{bf1:.3f}' if isinstance(bf1, (int, float)) else '-'):>12} "
-            f"{(f'{tf1:.3f}' if isinstance(tf1, (int, float)) else '-'):>9} "
-            f"{len(info.get('trials') or []):>7}"
-        )
-    lines.append("=" * 78)
+        lines.append(f"{vt:>22} {_fmt(best.get('val_f2')):>9} {_fmt(test.get('f2')):>9} "
+                     f"{_fmt(test.get('recall')):>9} {_fmt(test.get('precision')):>10} "
+                     f"{_fmt(test.get('accuracy')):>9} {len(info.get('trials') or []):>7}")
+    lines.append("=" * 96)
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
+
 # Main
-# ---------------------------------------------------------------------------
+
 
 def main() -> int:
     args = parse_args()
 
-    # Heavy/optional imports happen AFTER argparse so --help always works.
     try:
         import optuna
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -377,7 +513,6 @@ def main() -> int:
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Validate requested types.
     bad = [t for t in args.types if t not in VULN_TYPES]
     if bad:
         print(f"Unknown vulnerability type(s): {bad}. Must be from: {VULN_TYPES}")
@@ -385,20 +520,16 @@ def main() -> int:
 
     results = {
         "started": datetime.now().isoformat(timespec="seconds"),
-        "device": device,
-        "config": {
-            "trials": args.trials,
-            "hours_per_type": args.hours_per_type,
-            "max_train_samples": args.max_train_samples,
-            "max_eval_samples": args.max_eval_samples,
-            "max_length": args.max_length,
-            "model": STAGE1_MODEL,
-        },
+        "device": device, "model": args.model,
+        "config": {"trials": args.trials, "hours_per_type": args.hours_per_type,
+                   "max_train_samples": args.max_train_samples,
+                   "max_eval_samples": args.max_eval_samples,
+                   "max_length": args.max_length, "cnn_epochs": args.cnn_epochs,
+                   "beta": args.beta},
         "types": {},
     }
 
-    print(f"Device: {device}  |  types: {args.types}")
-    print(f"Budget: {args.hours_per_type} h/type, up to {args.trials} trials/type")
+    print(f"Model: {args.model}  |  device: {device}  |  types: {args.types}")
     print(f"Results -> {args.results_file}")
     if args.storage:
         print(f"Optuna storage (resumable) -> {args.storage}")
