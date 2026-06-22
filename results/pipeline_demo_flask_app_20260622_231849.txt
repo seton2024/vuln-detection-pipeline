@@ -1,0 +1,101 @@
+==================================================================
+ PIPELINE REPORT — flask_app.py
+ backend: cnn_bilstm    Stage 3: disabled    2026-06-22 23:18:49
+==================================================================
+
+STAGE 0 — Bandit (static analysis)
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                       247           8          0
+  xss                       255           0          0
+  command_injection         251           4          0
+  xsrf                      251           4          0
+  path_disclosure           255           0          0
+  open_redirect             251           4          0
+  remote_code_execution     250           5          0
+  Example Bandit-flagged snippet:
+    | # ---------------------------------------------------------------------------
+    | 
+    | @app.route("/login", methods=["POST"])
+    | def login():
+    |     """Classic string-concatenated SQL — allows ' OR '1'='1 bypass."""
+    |     username = request.form.get("username", "")
+    |     password = request.form.get("password", "")
+    | 
+    |     # VULNERABLE: user-controlled values concatenated directly into query string
+    |     query = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + password + "'"
+
+STAGE 1 — cnn_bilstm
+  Total windows scanned: 1785
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                       247           0          8
+  xss                       225           0         30
+  command_injection          94           0        161
+  xsrf                      244           0         11
+  path_disclosure           211           0         44
+  open_redirect             225           0         30
+  remote_code_execution     171           0         84
+  Example highest-scoring window:
+    |     username = request.form.get("username", "")
+    |     password = request.form.get("password", "")
+    | 
+    |     # VULNERABLE: user-controlled values concatenated directly into query string
+    |     query = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + password + "'"
+    |     db = get_db()
+    |     cursor = db.execute(query)          # SQL injection here
+    |     user = cursor.fetchone()
+    | 
+    |     if user:
+
+STAGE 1.5 — Consolidation
+  Flagged windows received    : 368
+  Consolidated windows produced: 79
+  Example consolidated window (sent to Stage 2):
+    | 
+    | from flask import (
+    |     Flask, request, redirect, render_template_string,
+    |     session, g, send_file
+    | )
+    | 
+    | app = Flask(__name__)
+    | app.secret_key = "sk_live_51Nx8B2JkM9pQ3vWzR4tY7mK1aB9cDsExFzG8hI0j"   # B105 — hardcoded password
+    | 
+
+STAGE 2 — Llama
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                         5           0          2
+  xss                         5           0          5
+  command_injection          11           0          8
+  xsrf                        2           0          1
+  path_disclosure             7           0          4
+  open_redirect               5           0          6
+  remote_code_execution       9           0          9
+  Example Stage 2 section:
+    |     # VULNERABLE: eval() on user-controlled input = arbitrary code execution
+    |     try:
+    |         result = eval(expr)             # B307 — eval of untrusted input
+    |         return str(result)
+    |     except Exception as e:
+    |         return str(e), 400
+    | 
+    | 
+    | @app.route("/template_render")
+
+STAGE 3 — Claude
+  Received snippets (ambiguous from Stage 2): 35
+  (Stage 3 disabled — set STAGE3_ENABLED=1 to run Claude)
+  Example snippet that would go to Claude:
+    |     user = cursor.fetchone()
+    | 
+    |     if user:
+    |         session["user"] = username
+    |         return "Logged in"
+    |     return "Invalid credentials", 401
+    | 
+    | 
+    | @app.route("/search")
+    | def search():
+
+==================================================================

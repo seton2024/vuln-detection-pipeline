@@ -25,7 +25,7 @@ from flask import (
 )
 
 app = Flask(__name__)
-app.secret_key = "hardcoded_secret_key_do_not_ship"   # B105 — hardcoded password
+app.secret_key = "sk_live_51Nx8B2JkM9pQ3vWzR4tY7mK1aB9cDsExFzG8hI0j"   # B105 — hardcoded password
 
 DATABASE = "users.db"
 

@@ -36,7 +36,7 @@ STAGE2_SAFE_THRESHOLD = 0.5
 
 # If Stage 2 scores ABOVE this, the code is definitely vulnerable — stop here, don't call Claude.
 # Between 0.5 and 0.9 = uncertain => escalate to Stage 3 (Claude Haiku).
-STAGE2_ESCALATION_THRESHOLD = 0.9
+STAGE2_ESCALATION_THRESHOLD = 1.0
 
 
 # Stage 1 model (the GraphCodeBERT checkpoint used both as a classifier and as a
