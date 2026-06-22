@@ -15,7 +15,19 @@ VULN_TYPES = [
     "remote_code_execution",
 ]
 
-# Stage escalation thresholds
+#for Llama claude prompts, so they read naturally
+VULN_TYPE_NAMES = {
+    "sql": "SQL injection",
+    "xss": "cross-site scripting (XSS)",
+    "command_injection": "command injection",
+    "xsrf": "cross-site request forgery (CSRF/XSRF)",
+    "path_disclosure": "path disclosure",
+    "open_redirect": "open redirect",
+    "remote_code_execution": "remote code execution",
+}
+
+# ESCALATIONS
+
 # If Stage 1 (CodeBERT) scores above this, the code is suspicious enough to pass to Stage 2.
 STAGE1_ESCALATION_THRESHOLD = 0.5
 
@@ -26,8 +38,6 @@ STAGE2_SAFE_THRESHOLD = 0.5
 # Between 0.5 and 0.9 = uncertain => escalate to Stage 3 (Claude Haiku).
 STAGE2_ESCALATION_THRESHOLD = 0.9
 
-# Stage 3 (Claude API) costs money per call. Default OFF. Turn on with: STAGE3_ENABLED=1
-STAGE3_ENABLED = os.getenv("STAGE3_ENABLED", "0") == "1"
 
 # Stage 1 model (the GraphCodeBERT checkpoint used both as a classifier and as a
 # frozen feature extractor for the CNN-BiLSTM head).
@@ -43,6 +53,18 @@ STAGE1_DROPOUT = 0.3        # dropout before the final linear layer
 
 # Max chars of code sent to Llama (Stage 2) — a center slice of the consolidated window.
 STAGE2_WINDOW_CHARS = 300
+
+#Stage 2 models
+OLLAMA_MODEL = "qwen2.5-coder:7b"
+STAGE2_WINDOW_CHARS = 300
+OLLAMA_MOCK = True # If True, Stage 2 returns a fake score instead of calling Ollama, for testing without a model.
+
+
+#Stage 3 models
+STAGE3_ENABLED = os.environ.get("STAGE3_ENABLED", "0").strip() in ("1", "true", "True", "yes")
+CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+CLAUDE_MAX_TOKENS = 1024
+CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"
 
 # Paths
 VUDENC_DATA_DIR = "data/vudenc"
