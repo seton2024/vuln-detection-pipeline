@@ -1,0 +1,101 @@
+==================================================================
+ PIPELINE REPORT — app_with_vulns.py
+ backend: cnn_bilstm    Stage 3: disabled    2026-06-22 17:27:57
+==================================================================
+
+STAGE 0 — Bandit (static analysis)
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                        18           5          0
+  xss                        23           0          0
+  command_injection          19           4          0
+  xsrf                       19           4          0
+  path_disclosure            23           0          0
+  open_redirect              19           4          0
+  remote_code_execution      20           3          0
+  Example Bandit-flagged snippet:
+    | 
+    | import os
+    | import sqlite3
+    | 
+    | 
+    | def get_user(conn, username):
+    |     cur = conn.cursor()
+    |     query = "SELECT * FROM users WHERE name = '" + username + "'"
+    |     cur.execute(query)
+    |     return cur.fetchall()
+
+STAGE 1 — cnn_bilstm
+  Total windows scanned: 161
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                        11           0         12
+  xss                        20           0          3
+  command_injection           4           0         19
+  xsrf                       23           0          0
+  path_disclosure            18           0          5
+  open_redirect              17           0          6
+  remote_code_execution      15           0          8
+  Example highest-scoring window:
+    | """
+    | 
+    | import os
+    | import sqlite3
+    | 
+    | 
+    | def get_user(conn, username):
+    |     cur = conn.cursor()
+    |     query = "SELECT * FROM users WHERE name = '" + username + "'"
+    |     cur.execute(query)
+
+STAGE 1.5 — Consolidation
+  Flagged windows received    : 53
+  Consolidated windows produced: 10
+  Example consolidated window (sent to Stage 2):
+    |     query = "SELECT * FROM users WHERE name = '" + username + "'"
+    |     cur.execute(query)
+    |     return cur.fetchall()
+    | 
+    | 
+    | def ping_host(user_input):
+    |     os.system("ping " + user_input)
+    | 
+    | 
+    | def render_greeting(name):
+
+STAGE 2 — Llama
+  Vuln Type                Safe  Vulnerable  Ambiguous
+  ----------------------------------------------------
+  sql                         1           0          0
+  xss                         0           1          0
+  command_injection           1           0          0
+  path_disclosure             0           0          1
+  open_redirect               3           0          0
+  remote_code_execution       2           1          0
+  Example Stage 2 section:
+    | """Sample input for the pipeline demo — contains deliberate vulnerabilities.
+    | 
+    | Lines that are TRULY vulnerable are tagged with a trailing `
+    | run_pipeline_demo.py strips that marker before scanning (so the model never
+    | sees it) and uses it only to draw the red ground-truth dots in the PNGs.
+    | """
+    | 
+    | import os
+    | import sqlite3
+    | 
+
+STAGE 3 — Claude
+  Received snippets (ambiguous from Stage 2): 1
+  (Stage 3 disabled — set STAGE3_ENABLED=1 to run Claude)
+  Example snippet that would go to Claude:
+    | 
+    | 
+    | def render_greeting(name):
+    |     return "<h1>Hello " + name + "</h1>"
+    | 
+    | 
+    | def run_expr(expr):
+    |     return eval(expr)
+    | 
+
+==================================================================
