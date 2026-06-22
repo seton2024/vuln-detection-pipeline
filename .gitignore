@@ -18,16 +18,10 @@ env/
 
 # VUDENC raw dataset (large Zenodo files — not ours to redistribute)
 data/vudenc/
-
-# Processed splits ARE committed to git (data/processed/ is tracked)
-
-# Trained model weights (can be hundreds of GB)
-models/*.pt
-models/*.bin
-models/*.safetensors
+models/graphcodebert/
+models/cnn/
 
 # Generated pipeline outputs
-results/*.json
 results/*.csv
 
 # IDE
@@ -42,4 +36,3 @@ Thumbs.db
 tests/
 docs/
 
-scripts/verify_setup.py

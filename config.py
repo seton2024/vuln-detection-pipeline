@@ -49,6 +49,16 @@ VUDENC_DATA_DIR = "data/vudenc"
 MODELS_DIR = "models"
 RESULTS_DIR = "results"
 
+# Model weights are split into per-backend subfolders of MODELS_DIR:
+#   models/cnn/cnn_bilstm_{type}.pt   and   models/graphcodebert/graphcodebert_{type}.pt
+MODEL_SUBDIR = {"cnn_bilstm": "cnn", "graphcodebert": "graphcodebert"}
+
+# Results are split by the stage they belong to (plus a folder for demo images).
+STAGE1_RESULTS_DIR = os.path.join(RESULTS_DIR, "stage1")   # Stage 1 model search/eval
+STAGE2_RESULTS_DIR = os.path.join(RESULTS_DIR, "stage2")   # Stage 2 (Llama)
+STAGE3_RESULTS_DIR = os.path.join(RESULTS_DIR, "stage3")   # Stage 3 (Claude)
+DEMO_RESULTS_DIR = os.path.join(RESULTS_DIR, "m_demo")     # demo PNGs
+
 # Dataset split ratios
 TRAIN_RATIO = 0.70
 VAL_RATIO = 0.15

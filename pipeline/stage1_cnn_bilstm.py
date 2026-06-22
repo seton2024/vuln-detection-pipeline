@@ -290,7 +290,7 @@ def _best_fbeta_from_probs(probs, labels, beta=2.0):
 # ---------------------------------------------------------------------------
 
 def _checkpoint_path(vuln_type: str) -> str:
-    return os.path.join(MODELS_DIR, f"cnn_bilstm_{vuln_type}.pt")
+    return os.path.join(MODELS_DIR, "cnn", f"cnn_bilstm_{vuln_type}.pt")
 
 
 def save_checkpoint(path, classifier, hp, max_length=_MAX_LENGTH, threshold=0.5):
@@ -373,7 +373,7 @@ def train(vuln_type: str, epochs: int = 3, batch_size: int = 16,
           records: Optional[list] = None) -> None:
     """
     Train the CNN-BiLSTM head on data/processed/{vuln_type}_train.json and save it
-    to models/cnn_bilstm_{vuln_type}.pt. GraphCodeBERT stays frozen throughout.
+    to models/cnn/cnn_bilstm_{vuln_type}.pt. GraphCodeBERT stays frozen throughout.
 
     The required public signature is train(vuln_type, epochs, batch_size); the
     extra keyword args let the search pass specific hyperparameters (and tests

@@ -7,10 +7,10 @@ Trains EITHER backend (choose with --model):
 
 
 Outputs:
-  - best model per type  -> models/{backend}_{type}.pt          (saved on improvement)
-  - best hyperparameters -> results/best_hyperparams_{type}.json
-  - full experiment log  -> results/stage1_experiments.json     (crash-safe)
-  - readable summary     -> results/stage1_summary.txt
+  - best model per type  -> models/cnn/cnn_bilstm_{type}.pt  OR  models/graphcodebert/graphcodebert_{type}.pt
+  - best hyperparameters -> results/stage1/best_hyperparams_{type}.json
+  - full experiment log  -> results/stage1/stage1_experiments.json   (crash-safe)
+  - readable summary     -> results/stage1/stage1_summary.txt
 
 USAGE
   python scripts/train_stage1.py                              # cnn_bilstm, all types
@@ -34,6 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import (
     STAGE1_MODEL, MODELS_DIR, RESULTS_DIR, VULN_TYPES,
     STAGE1_HIDDEN_DIM, STAGE1_CNN_FILTERS, STAGE1_DROPOUT,
+    MODEL_SUBDIR, STAGE1_RESULTS_DIR,
 )
 
 
@@ -59,10 +60,8 @@ def parse_args():
                    help="Epochs per cnn_bilstm trial (epochs are not searched for that model).")
     p.add_argument("--beta", type=float, default=2.0,
                    help="F-beta to optimize. >1 favors recall (catch all vulns) over precision. Default 2.")
-    p.add_argument("--save-all-trials", action="store_true",
-                   help="(graphcodebert only) also save every trial's weights under models/trials/.")
-    p.add_argument("--results-file", default=os.path.join(RESULTS_DIR, "stage1_experiments.json"))
-    p.add_argument("--storage", default=os.path.join(RESULTS_DIR, "optuna_stage1.db"),
+    p.add_argument("--results-file", default=os.path.join(STAGE1_RESULTS_DIR, "stage1_experiments.json"))
+    p.add_argument("--storage", default=os.path.join(STAGE1_RESULTS_DIR, "optuna_stage1.db"),
                    help="SQLite file for Optuna (enables resume). Empty string = in-memory.")
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
@@ -229,7 +228,7 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
         _save_results(args.results_file, results)
         return
 
-    model_path = os.path.join(MODELS_DIR, f"{args.model}_{vuln_type}.pt")
+    model_path = os.path.join(MODELS_DIR, MODEL_SUBDIR[args.model], f"{args.model}_{vuln_type}.pt")
     state = {"best_score": -1.0, "best_threshold": 0.5}
     results["types"][vuln_type] = {
         "status": "running", "model": args.model,
@@ -321,7 +320,7 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
                     state["best_score"] = score
                     state["best_threshold"] = metrics["threshold"]
                     import torch
-                    os.makedirs(MODELS_DIR, exist_ok=True)
+                    os.makedirs(os.path.dirname(model_path), exist_ok=True)
                     torch.save(model.state_dict(), model_path)
                 _cleanup(model, tokenizer)
             except Exception as e:
@@ -371,8 +370,8 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
     type_results["best"] = {"params": best_params,
                             "val_f2": round(best_value, 4) if best_value is not None else None,
                             "threshold": state["best_threshold"]}
-    bh_path = os.path.join(RESULTS_DIR, f"best_hyperparams_{vuln_type}.json")
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    bh_path = os.path.join(STAGE1_RESULTS_DIR, f"best_hyperparams_{vuln_type}.json")
+    os.makedirs(STAGE1_RESULTS_DIR, exist_ok=True)
     with open(bh_path, "w", encoding="utf-8") as f:
         json.dump({"vuln_type": vuln_type, "model": args.model,
                    "objective": f"F{args.beta:g}", "best_val_f2": best_value,
@@ -545,8 +544,8 @@ def main() -> int:
 
     summary = build_summary(results)
     print("\n" + summary)
-    summary_path = os.path.join(RESULTS_DIR, "stage1_summary.txt")
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    summary_path = os.path.join(STAGE1_RESULTS_DIR, "stage1_summary.txt")
+    os.makedirs(STAGE1_RESULTS_DIR, exist_ok=True)
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write(summary + "\n")
     print(f"\nSaved summary -> {summary_path}")

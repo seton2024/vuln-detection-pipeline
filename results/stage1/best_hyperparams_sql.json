@@ -1,0 +1,16 @@
+{
+  "vuln_type": "sql",
+  "model": "cnn_bilstm",
+  "objective": "F2",
+  "best_val_f2": 0.7273163706192991,
+  "best_threshold": 0.1,
+  "best_params": {
+    "learning_rate": 0.00042470585622618684,
+    "hidden_dim": 128,
+    "cnn_filters": 32,
+    "dropout": 0.10220884684944097,
+    "batch_size": 16,
+    "lstm_layers": 1
+  },
+  "n_trials": 8
+}

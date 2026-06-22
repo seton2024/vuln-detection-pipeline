@@ -20,7 +20,7 @@ _CACHE: dict[str, Optional[dict]] = {}
 
 def _weights_path(vuln_type: str) -> str:
     #Return the on-disk path of the fine-tuned weights for a vuln type.
-    return os.path.join(MODELS_DIR, f"graphcodebert_{vuln_type}.pt")
+    return os.path.join(MODELS_DIR, "graphcodebert", f"graphcodebert_{vuln_type}.pt")
 
 
 def _load_classifier(vuln_type: str) -> Optional[dict]:
@@ -146,8 +146,8 @@ def train(
             optimizer.step()
         print(f"[stage1] {vuln_type!r} epoch {epoch + 1}/{epochs} done")
 
-    os.makedirs(MODELS_DIR, exist_ok=True)
     out_path = _weights_path(vuln_type)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     torch.save(model.state_dict(), out_path)
     print(f"[stage1] Saved fine-tuned weights -> {out_path}")
 

@@ -18,7 +18,7 @@ os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config import VULN_TYPES, STAGE1_BACKEND, RESULTS_DIR, VUDENC_DATA_DIR, VUDENC_BLOCK_LENGTH
+from config import VULN_TYPES, STAGE1_BACKEND, DEMO_RESULTS_DIR, VUDENC_DATA_DIR, VUDENC_BLOCK_LENGTH
 from pipeline.contract import WindowRecord
 from pipeline import stage0_bandit, stage1_graphcodebert, stage1_cnn_bilstm
 from data.vudenc_blocks import getcontextPos, findpositions
@@ -247,7 +247,7 @@ def main() -> int:
         print(f"(note: source truncated to first {args.max_lines} lines — raise --max-lines to see more)")
 
 
-    out_path = os.path.join(RESULTS_DIR, "m_demo", f"demo_{args.vuln_type}_{out_id}.png")
+    out_path = os.path.join(DEMO_RESULTS_DIR, f"demo_{args.vuln_type}_{out_id}.png")
     if save_png(rows, badpositions, args.vuln_type, source_id, backend, out_path):
         print(f"Saved visualization -> {out_path}")
     return 0
