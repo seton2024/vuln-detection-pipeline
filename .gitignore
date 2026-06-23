@@ -21,8 +21,17 @@ data/vudenc/
 models/graphcodebert/
 models/cnn/
 
-# Generated pipeline outputs
+# Generated pipeline outputs (may contain code snippets with demo secrets)
 results/*.csv
+results/*.json
+results/*.txt
+results/*.png
+results/*.html
+results/m_demo/
+results/stage1/
+results/stage2/
+results/stage3/
+results/old/
 
 # IDE
 .vscode/
