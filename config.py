@@ -4,6 +4,13 @@ Central configuration, no hardcoding!
 
 import os
 
+# Load a local .env file if present (keeps secrets out of source/git).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 VULN_TYPES = [
     "sql",
@@ -55,9 +62,12 @@ STAGE1_DROPOUT = 0.3        # dropout before the final linear layer
 STAGE2_WINDOW_CHARS = 300
 
 #Stage 2 models
-OLLAMA_MODEL = "qwen2.5-coder:7b"
-STAGE2_WINDOW_CHARS = 300
-OLLAMA_MOCK = True # If True, Stage 2 returns a fake score instead of calling Ollama, for testing without a model.
+# Override the model from the environment so you can use whatever you have
+# pulled locally (e.g. OLLAMA_MODEL=llama3.1:8b). Falls back to the default.
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
+# Stage 2 mock toggle. Defaults to ON (fake deterministic scores, no Ollama
+# needed). Set env OLLAMA_MOCK=0 to actually call Ollama.
+OLLAMA_MOCK = os.environ.get("OLLAMA_MOCK", "1").strip() in ("1", "true", "True", "yes")
 
 
 #Stage 3 models
@@ -65,7 +75,10 @@ OLLAMA_MOCK = True # If True, Stage 2 returns a fake score instead of calling Ol
 STAGE3_ENABLED = True
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 CLAUDE_MAX_TOKENS = 1024
-CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"  # set this env var to your key — never hardcode keys in source
+# NAME of the environment variable that holds the Anthropic API key — NOT the
+# key itself. Put the real key in a local .env file (git-ignored) or export it:
+#   export ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"
 
 # Paths
 VUDENC_DATA_DIR = "data/vudenc"

@@ -5,6 +5,7 @@ Stage 3: Claude Haiku via Batch API.
 
 
 import os
+import re
 import json
 from pathlib import Path
 
@@ -34,7 +35,8 @@ except ImportError:
 # we mark it for prompt caching to cut cost (only the code differs each call).
 SYSTEM_PROMPT = """You are a security code reviewer specializing in Python vulnerabilities.
 You will be given a code snippet and a vulnerability type to check for.
-Respond ONLY with valid JSON matching this schema exactly:
+Respond ONLY with valid JSON matching this schema exactly. Do NOT wrap it in
+markdown code fences and do NOT add any text before or after the JSON:
 {
   "verdict": "vulnerable" | "not_vulnerable",
   "findings": [
@@ -47,6 +49,28 @@ Respond ONLY with valid JSON matching this schema exactly:
   ]
 }
 If not vulnerable, return an empty findings array."""
+
+
+def _extract_json(text: str) -> dict:
+    """Parse the model reply into a dict, tolerating markdown fences / stray prose.
+
+    Claude often wraps the JSON in ```json ... ``` fences and sometimes adds an
+    explanatory sentence AFTER the closing fence. We strip a leading fence, then
+    decode just the first balanced {...} object and ignore any trailing text.
+    """
+    text = (text or "").strip()
+
+    # Strip a leading markdown fence line (``` or ```json) if present.
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9]*\s*", "", text)
+
+    # Decode the first JSON object starting at the first "{"; raw_decode stops
+    # at the end of that object and ignores trailing fences/prose.
+    start = text.find("{")
+    if start == -1:
+        return json.loads(text)  # no object -> raise a clear JSONDecodeError
+    obj, _ = json.JSONDecoder().raw_decode(text[start:])
+    return obj
 
 
 def predict(record: WindowRecord) -> None:
@@ -99,12 +123,15 @@ def predict(record: WindowRecord) -> None:
             ],
             messages=[{"role": "user", "content": user_prompt}],
         )
-        result = json.loads(response.content[0].text)
+        raw = response.content[0].text
+        result = _extract_json(raw)
         record.stage3_verdict = result["verdict"]
         record.stage3_findings = result.get("findings", [])
     except (json.JSONDecodeError, KeyError, IndexError) as err:
         # Claude returned something we couldn't parse -> mark uncertain.
-        print(f"[stage3] WARNING: could not parse Claude reply ({err}).")
+        snippet = (raw[:200] if "raw" in dir() and isinstance(raw, str) else "<no text>")
+        print(f"[stage3] WARNING: could not parse Claude reply ({err}). "
+              f"First 200 chars: {snippet!r}")
         record.stage3_verdict = None
         record.stage3_findings = None
     except Exception as err:  # noqa: BLE001 -- network/API error: log and bail
