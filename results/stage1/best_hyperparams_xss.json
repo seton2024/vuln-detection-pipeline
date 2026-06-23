@@ -1,9 +1,9 @@
 {
   "vuln_type": "xss",
   "model": "cnn_bilstm",
-  "objective": "F2",
-  "best_val_f2": 0.8038029386343993,
-  "best_threshold": 0.4,
+  "objective": "F1",
+  "best_val_f2": 0.8248337028824835,
+  "best_threshold": 0.85,
   "best_params": {
     "learning_rate": 0.00020914981329035596,
     "hidden_dim": 128,

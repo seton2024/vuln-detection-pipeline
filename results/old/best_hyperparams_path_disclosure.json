@@ -1,9 +1,9 @@
 {
-  "vuln_type": "command_injection",
+  "vuln_type": "path_disclosure",
   "model": "cnn_bilstm",
-  "objective": "F1",
-  "best_val_f2": 0.8024193548387096,
-  "best_threshold": 0.9,
+  "objective": "F2",
+  "best_val_f2": 0.6918238993710691,
+  "best_threshold": 0.3,
   "best_params": {
     "learning_rate": 0.00020914981329035596,
     "hidden_dim": 128,

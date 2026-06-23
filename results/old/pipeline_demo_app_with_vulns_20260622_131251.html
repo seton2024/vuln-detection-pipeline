@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Pipeline Demo &mdash; app_with_vulns</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 28px; background: #f6f7f9; color: #1d2330; }
+  h1 { margin-bottom: 2px; } .meta { color: #667; margin-top: 0; }
+  .cards { display: flex; gap: 16px; margin: 22px 0; }
+  .card { flex: 1; background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center; }
+  .card .num { font-size: 34px; font-weight: 700; line-height: 1.1; }
+  .card .lbl { color: #667; font-size: 13px; margin-top: 4px; }
+  .vuln { color: #c0392b; } .safe { color: #27ae60; } .amb { color: #c79100; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  th, td { padding: 9px 13px; text-align: left; border-bottom: 1px solid #eef0f3; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  th { background: #1d2330; color: #fff; }
+  .badge { padding: 2px 9px; border-radius: 12px; color: #fff; font-size: 11px; font-weight: 700; }
+  .b-vuln { background: #c0392b; } .b-amb { background: #c79100; }
+  .b-on { background: #27ae60; } .b-off { background: #7f8c8d; }
+  .finding { background: #fff5f5; border-left: 4px solid #c0392b; padding: 10px 14px; margin: 8px 0; border-radius: 6px; }
+  code { background: #f0f1f4; padding: 2px 5px; border-radius: 4px; }
+</style>
+</head><body>
+<h1>Pipeline Demo &mdash; app_with_vulns.py</h1>
+<p class="meta">Run: 20260622_131251 &nbsp;&bull;&nbsp; Backend: <b>cnn_bilstm</b>
+&nbsp;&bull;&nbsp; <span class="badge b-off">Stage 3 DISABLED</span></p>
+
+<div class="cards">
+  <div class="card"><div class="num">126</div><div class="lbl">Total windows</div></div>
+  <div class="card"><div class="num vuln">1</div><div class="lbl">Vulnerable</div></div>
+  <div class="card"><div class="num safe">84</div><div class="lbl">Safe</div></div>
+  <div class="card"><div class="num amb">3</div><div class="lbl">Ambiguous</div></div>
+</div>
+
+<h2>Findings</h2>
+<table>
+  <thead><tr><th>Vuln Type</th><th>Verdict</th><th>Bandit</th><th>Stage 1</th><th>Stage 2</th><th>Stopped At</th></tr></thead>
+  <tbody>
+<tr><td>path_disclosure</td><td><span class="badge b-amb">AMBIGUOUS</span></td><td>no</td><td>0.90</td><td>0.83</td><td>Stage 3 pending</td></tr>
+<tr><td>xss</td><td><span class="badge b-vuln">VULNERABLE</span></td><td>no</td><td>0.85</td><td>0.91</td><td>Stage 2</td></tr>
+<tr><td>sql</td><td><span class="badge b-amb">AMBIGUOUS</span></td><td>YES</td><td>0.79</td><td>0.82</td><td>Stage 3 pending</td></tr>
+<tr><td>xss</td><td><span class="badge b-amb">AMBIGUOUS</span></td><td>no</td><td>0.54</td><td>0.76</td><td>Stage 3 pending</td></tr>
+
+  </tbody>
+</table>
+
+<h2>Stage 3 line-level findings</h2>
+<p style="color:#888">No Stage 3 line-level findings (Stage 3 disabled, or no findings produced).</p>
+</body></html>

@@ -55,8 +55,16 @@ def run_pipeline(records: List[WindowRecord]) -> List[WindowRecord]:
     consolidated = consolidate(records)
 
     # Stage 2: Llama — only for records Stage 1 flagged as suspicious.
+    # Use the per-type threshold from the checkpoint when available (it is the
+    # F-beta-optimal cutoff chosen during training). Fall back to the global
+    # STAGE1_ESCALATION_THRESHOLD only when no checkpoint threshold exists.
     for record in consolidated:
-        if record.stage1_score is not None and record.stage1_score > STAGE1_ESCALATION_THRESHOLD:
+        if record.stage1_score is None:
+            continue
+        th = (stage1.get_threshold(record.vulnerability_type)
+              if hasattr(stage1, "get_threshold")
+              else STAGE1_ESCALATION_THRESHOLD)
+        if record.stage1_score > th:
             stage2_llama.predict(record)
 
     # Stage 3: Claude — only for records Stage 2 left uncertain (and if enabled).

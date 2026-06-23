@@ -1,16 +1,16 @@
 {
   "vuln_type": "sql",
   "model": "cnn_bilstm",
-  "objective": "F2",
-  "best_val_f2": 0.7273163706192991,
-  "best_threshold": 0.1,
+  "objective": "F1",
+  "best_val_f2": 0.6334519572953736,
+  "best_threshold": 0.7,
   "best_params": {
-    "learning_rate": 0.00042470585622618684,
-    "hidden_dim": 128,
+    "learning_rate": 0.0001329291894316216,
+    "hidden_dim": 64,
     "cnn_filters": 32,
-    "dropout": 0.10220884684944097,
-    "batch_size": 16,
+    "dropout": 0.4464704583099741,
+    "batch_size": 32,
     "lstm_layers": 1
   },
-  "n_trials": 8
+  "n_trials": 5
 }
