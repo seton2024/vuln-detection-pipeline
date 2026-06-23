@@ -1,9 +1,9 @@
 {
   "vuln_type": "remote_code_execution",
   "model": "cnn_bilstm",
-  "objective": "F2",
-  "best_val_f2": 0.768595041322314,
-  "best_threshold": 0.65,
+  "objective": "F1",
+  "best_val_f2": 0.8432671081677704,
+  "best_threshold": 0.45,
   "best_params": {
     "learning_rate": 0.00020914981329035596,
     "hidden_dim": 128,

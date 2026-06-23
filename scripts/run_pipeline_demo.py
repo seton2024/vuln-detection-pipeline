@@ -7,17 +7,11 @@ Stage 3 Claude), shows a progress bar per stage, and produces:
 
   1. A per-stage text report — printed to the terminal AND saved to
      results/pipeline_demo_<file>_<timestamp>.txt
-  2. One PNG PER STAGE in results/m_demo/, where each source line is coloured by
-     that stage's outcome:
-       green -> yellow -> red  = safe -> vulnerable (Stage 1 score)
-       grey                    = comment lines
-       black                   = code escalated to the next stage (undetermined)
-       red dot (●)             = TRUE vulnerable line (from `# VULN` labels)
-
-Ground-truth labels: lines tagged with a trailing `# VULN` comment in the input
-are treated as truly-vulnerable (red dot). The marker is stripped before
-scanning so the model never sees it. This labelling is for THIS demo only — in
-production there are no such labels.
+  2. One PNG per stage in results/m_demo/:
+       - Stage 0 (Bandit): the code with the Bandit test ID (e.g. B608) shown
+         next to each flagged line.
+       - Stages 1/2/3: a heatmap colouring each line by how vulnerable that
+         stage scored it (green -> yellow -> orange -> red), grey for comments.
 
 Separate from scripts/demo.py (the per-line visualizer), which is left untouched.
 
@@ -45,49 +39,83 @@ os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
 from pipeline import stage0_bandit, stage1_cnn_bilstm, stage1_graphcodebert, stage2_llama, stage3_claude
 from pipeline.stage15_consolidator import consolidate
-from data.windowing import extract_all_vuln_types
+from data.windowing import extract_all_vuln_types, extract_all_vuln_types_char
 from pipeline.contract import WindowRecord
 from config import (STAGE1_ESCALATION_THRESHOLD, STAGE2_SAFE_THRESHOLD,
                     STAGE2_ESCALATION_THRESHOLD, STAGE3_ENABLED, STAGE1_BACKEND,
-                    VULN_TYPES, RESULTS_DIR, DEMO_RESULTS_DIR)
+                    VULN_TYPES, RESULTS_DIR, DEMO_RESULTS_DIR,
+                    VUDENC_BLOCK_LENGTH, VUDENC_BLOCK_STEP)
 
 INPUT_DIR = PROJECT_ROOT / "input_data"
 
-# A trailing `# VULN` comment marks a truly-vulnerable line (ground truth for the demo).
+# Optional `# VULN` markers in the input are stripped before scanning (so the
+# model never sees them). They are no longer drawn — kept only as input hygiene.
 LABEL_MARKER = re.compile(r"\s*#\s*VULN\b.*$", re.IGNORECASE)
 
-# Rank for "worst wins" when aggregating a line's status across windows.
-_RANK = {"safe": 0, "escalated": 1, "vulnerable": 2}
+# Heatmap colour bands (same scheme as demo.py).
+_BOUNDS = [0.0, 0.3, 0.6, 0.8, 1.0]
+_MPL = {"green": "#2ecc40", "yellow": "#ffdc00", "orange": "#ff851b",
+        "red": "#ff4136", "grey": "#9aa0a6", "blank": "#d4d7db", "code": "#1d2330"}
 
 
-# ---------------------------------------------------------------------------
-# Input loading (with ground-truth labels)
-# ---------------------------------------------------------------------------
+def _band(score) -> str:
+    #Return the colour-band name for a score (None -> blank)
+    if score is None:
+        return "blank"
+    if score < 0.3:
+        return "green"
+    if score < 0.6:
+        return "yellow"
+    if score < 0.8:
+        return "orange"
+    return "red"
+
+
+# Input loading
+
 
 def list_input_files() -> list:
-    """Return the alphabetically-sorted .py files in input_data/ (raises if missing)."""
+    #Return the alphabetically-sorted .py files in input_data/ (raises if missing).
     if not INPUT_DIR.is_dir():
         raise FileNotFoundError(str(INPUT_DIR))
     return sorted(INPUT_DIR.glob("*.py"))
 
 
-def load_labeled_code(path: Path):
-    """Read a file, strip `# VULN` markers, and return (clean_code, true_vuln_line_set)."""
-    clean_lines, true_vuln = [], set()
-    for i, line in enumerate(path.read_text(encoding="utf-8", errors="replace").split("\n")):
-        if LABEL_MARKER.search(line):
-            true_vuln.add(i)
-            line = LABEL_MARKER.sub("", line)
-        clean_lines.append(line)
-    return "\n".join(clean_lines), true_vuln
+def load_code(path: Path) -> str:
+    #Read a file and strip any `# VULN` markers so the model never sees them
+    return "\n".join(LABEL_MARKER.sub("", line)
+                     for line in path.read_text(encoding="utf-8", errors="replace").split("\n"))
 
 
-# ---------------------------------------------------------------------------
-# Per-record verdicts
-# ---------------------------------------------------------------------------
+def comment_lines(code: str) -> set:
+    #Line indices that are `#` comments OR inside a triple-quoted block (docstrings).
+    out = set()
+    in_block = None
+    for i, line in enumerate(code.split("\n")):
+        s = line.strip()
+        if in_block:
+            out.add(i)
+            if in_block in line:
+                in_block = None
+            continue
+        if s.startswith("#"):
+            out.add(i)
+            continue
+        for q in ('"""', "'''"):
+            if s.startswith(q):
+                out.add(i)
+                if q not in s[3:]:
+                    in_block = q
+                break
+    return out
+
+
+
+# Per-record verdicts / scores
+
 
 def classify(record: WindowRecord) -> str:
-    """Final 'safe' / 'vulnerable' / 'ambiguous' for the text report."""
+    #Final 'safe' / 'vulnerable' / 'ambiguous' for the text report.
     label = record.final_label()
     if label == "not_vulnerable":
         return "safe"
@@ -96,49 +124,27 @@ def classify(record: WindowRecord) -> str:
     return "ambiguous"
 
 
-def status_at_stage(r: WindowRecord, stage: int):
-    """Return (category, score_for_gradient) for a record AT a given stage, or None.
-
-    category: 'safe' (decided safe here), 'vulnerable' (decided vulnerable here),
-              'escalated' (sent to the next stage, undetermined here).
-    """
-    if stage == 0:
-        return ("escalated", None) if r.bandit_flag else ("safe", 0.0)
+def stage_score(r: WindowRecord, stage: int):
+    #The 0–1 'how vulnerable' score to colour by, AT a given stage (or None).
     if stage == 1:
-        if r.stage1_score is None:
-            return None
-        return ("escalated", r.stage1_score) if r.stage1_score > STAGE1_ESCALATION_THRESHOLD \
-            else ("safe", r.stage1_score)
+        return r.stage1_score
     if stage == 2:
-        if r.stage2_score is None:
-            # never reached Stage 2 -> Stage 1 already called it safe (or flagged but Llama gave nothing)
-            if r.stage1_score is not None and r.stage1_score > STAGE1_ESCALATION_THRESHOLD:
-                return ("escalated", None)
-            return ("safe", r.stage1_score)
-        if r.stage2_score < STAGE2_SAFE_THRESHOLD:
-            return ("safe", r.stage2_score)
-        if r.stage2_score > STAGE2_ESCALATION_THRESHOLD:
-            return ("vulnerable", r.stage2_score)
-        return ("escalated", r.stage2_score)
-    # stage 3
-    if r.stage3_verdict == "vulnerable":
-        return ("vulnerable", None)
-    if r.stage3_verdict == "not_vulnerable":
-        return ("safe", None)
-    if r.stage2_score is not None and STAGE2_SAFE_THRESHOLD <= r.stage2_score <= STAGE2_ESCALATION_THRESHOLD:
-        return ("escalated", None)   # was sent to Stage 3 but no verdict (disabled / unresolved)
-    return status_at_stage(r, 2)     # otherwise inherit the Stage 2 outcome
+        return r.stage2_score if r.stage2_score is not None else r.stage1_score
+    if stage == 3:
+        if r.stage3_verdict == "vulnerable":
+            return 1.0
+        if r.stage3_verdict == "not_vulnerable":
+            return 0.0
+        return r.stage2_score if r.stage2_score is not None else r.stage1_score
+    return None
 
 
-# ---------------------------------------------------------------------------
+
 # Per-stage, per-type counts for the text report  (safe, vulnerable, ambiguous)
-# ---------------------------------------------------------------------------
+
 
 def _counts(records, fn) -> dict:
-    out = {}
-    for vt in VULN_TYPES:
-        out[vt] = fn([r for r in records if r.vulnerability_type == vt])
-    return out
+    return {vt: fn([r for r in records if r.vulnerability_type == vt]) for vt in VULN_TYPES}
 
 
 def stage0_counts(records):
@@ -171,9 +177,8 @@ def stage3_counts(records):
     return _counts(records, f)
 
 
-# ---------------------------------------------------------------------------
+
 # Text report
-# ---------------------------------------------------------------------------
 
 def _counts_table(counts: dict) -> list:
     lines = [f"  {'Vuln Type':<22} {'Safe':>6} {'Vulnerable':>11} {'Ambiguous':>10}",
@@ -202,7 +207,7 @@ def _max_by(records, attr):
 
 
 def build_report(filename, backend, records, consolidated) -> list:
-    """Build the per-stage text report as a list of lines."""
+    #Build the per-stage text report as a list of lines.
     R = ["=" * 66, f" PIPELINE REPORT — {filename}",
          f" backend: {backend}    Stage 3: {'ENABLED' if STAGE3_ENABLED else 'disabled'}"
          f"    {datetime.now():%Y-%m-%d %H:%M:%S}", "=" * 66]
@@ -244,115 +249,163 @@ def build_report(filename, backend, records, consolidated) -> list:
     return R
 
 
-# ---------------------------------------------------------------------------
-# Per-stage PNGs
-# ---------------------------------------------------------------------------
 
-def _comment_lines(code) -> set:
-    """Return line indices that are `#` comments OR inside a triple-quoted block (docstrings)."""
-    out = set()
-    in_block = None
-    for i, line in enumerate(code.split("\n")):
-        s = line.strip()
-        if in_block:
-            out.add(i)
-            if in_block in line:
-                in_block = None
-            continue
-        if s.startswith("#"):
-            out.add(i)
-            continue
-        for q in ('"""', "'''"):
-            if s.startswith(q):
-                out.add(i)
-                if q not in s[3:]:        # not closed on the same line
-                    in_block = q
-                break
-    return out
+# PNGs
 
 
-def _line_status(code, records, stage, window, stride, true_vuln, comment_set) -> list:
-    """Per source line: worst category + max score AT a given stage, plus comment/true_vuln flags."""
+def _line_scores(code, records, stage, window, stride) -> list:
+    """Per source line: max 'how vulnerable' score across covering windows AT a stage.
+
+    For char-based windows the exact character offset isn't stored in WindowRecord,
+    so we map each window's code text back to its first occurrence in the source to
+    find which lines it covers. Falls back to an index-based estimate when the
+    substring isn't found (e.g. after consolidation trims the code).
+    """
     lines = code.split("\n")
     n = len(lines)
-    cat, score = [None] * n, [None] * n
+    best = [None] * n
+
+    # Precompute cumulative char offset of each line start for fast lookup.
+    line_starts = []
+    pos = 0
+    for line in lines:
+        line_starts.append(pos)
+        pos += len(line) + 1  # +1 for \n
+
+    def char_to_line(char_pos):
+        # Binary-search line_starts for the line containing char_pos.
+        lo, hi = 0, n - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if line_starts[mid] <= char_pos:
+                lo = mid
+            else:
+                hi = mid - 1
+        return lo
+
     groups = defaultdict(list)
     for r in records:
         groups[r.vulnerability_type].append(r)
+
     for recs in groups.values():
-        spans = [(0, n)] if (len(recs) == 1 and window > n) else \
-            [(j * stride, min(j * stride + window, n)) for j in range(len(recs))]
-        for (a, b), r in zip(spans, recs):
-            st = status_at_stage(r, stage)
-            if st is None:
+        for j, r in enumerate(recs):
+            s = stage_score(r, stage)
+            if s is None:
                 continue
-            c, s = st
+            # Try to find this window's exact position by substring match.
+            snippet = r.code or ""
+            idx = code.find(snippet[:80])  # match on first 80 chars (fast, usually unique)
+            if idx != -1:
+                a = char_to_line(idx)
+                b = min(char_to_line(idx + len(snippet)) + 1, n)
+            else:
+                # Fallback: spread windows evenly (line-based estimate).
+                a = j * stride
+                b = min(a + window, n)
             for i in range(a, b):
-                if 0 <= i < n:
-                    if cat[i] is None or _RANK[c] > _RANK[cat[i]]:
-                        cat[i] = c
-                    if s is not None and (score[i] is None or s > score[i]):
-                        score[i] = s
-    return [{"text": t, "comment": i in comment_set,
-             "category": cat[i], "score": score[i], "true_vuln": i in true_vuln}
-            for i, t in enumerate(lines)]
+                if 0 <= i < n and (best[i] is None or s > best[i]):
+                    best[i] = s
+    return best
 
 
-def render_stage_png(rows, out_path: Path, title: str):
-    """Render one stage's coloured per-line PNG. Returns the path or None."""
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        from matplotlib import colormaps
-        from matplotlib.cm import ScalarMappable
-        from matplotlib.colors import Normalize
-    except ImportError:
-        return None
-
-    cmap = colormaps["RdYlGn_r"]              # 0=green (safe), 1=red (vulnerable)
-    n = len(rows)
+def _new_fig(n):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(15, max(2.6, 0.23 * n + 1.8)))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
-
-    for i, row in enumerate(rows):
-        y = n - 1 - i
-        text = row["text"] if row["text"].strip() else " "
-        if len(text) > 200:
-            text = text[:197] + "..."
-        if row["comment"]:
-            colour = "#9aa0a6"                              # grey
-        elif row["category"] == "vulnerable":
-            colour = "#c0392b"                              # red
-        elif row["category"] == "escalated":
-            colour = "#000000"                              # black
-        elif row["category"] == "safe":
-            colour = cmap(row["score"]) if row["score"] is not None else "#2ecc40"
-        else:
-            colour = "#cfd2d6"                              # uncovered / blank
-        if row["true_vuln"]:
-            ax.text(0.004, y, "●", va="center", ha="left", fontsize=10, color="#ff0000")
-        ax.text(0.03, y, text, va="center", ha="left", fontsize=9, family="monospace", color=colour)
-        if row["score"] is not None and not row["comment"]:
-            ax.text(0.995, y, f"{row['score']:.2f}", va="center", ha="right",
-                    fontsize=8, family="monospace", color=colour)
-
     ax.set_xlim(0, 1)
     ax.set_ylim(-1.5, n - 0.5)
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.set_title(title, fontsize=12, loc="left")
+    return plt, fig, ax
 
-    sm = ScalarMappable(norm=Normalize(0, 1), cmap=cmap)
+
+def render_heatmap_png(code, scores, comments, out_path: Path, title: str):
+    #Stages 1/2/3: colour each line by its score (green→red), grey for comments.
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.colors import ListedColormap, BoundaryNorm
+        from matplotlib.cm import ScalarMappable
+    except ImportError:
+        return None
+    lines = code.split("\n")
+    n = len(lines)
+    plt, fig, ax = _new_fig(n)
+    for i, line in enumerate(lines):
+        y = n - 1 - i
+        text = (line if line.strip() else " ")[:200]
+        band = "grey" if i in comments else _band(scores[i])
+        colour = _MPL[band]
+        ax.text(0.03, y, text, va="center", ha="left", fontsize=9, family="monospace", color=colour)
+        if i not in comments and scores[i] is not None:
+            ax.text(0.995, y, f"{scores[i]:.2f}", va="center", ha="right",
+                    fontsize=8, family="monospace", color=colour)
+    ax.set_title(title, fontsize=12, loc="left")
+    cmap = ListedColormap([_MPL["green"], _MPL["yellow"], _MPL["orange"], _MPL["red"]])
+    sm = ScalarMappable(norm=BoundaryNorm(_BOUNDS, cmap.N), cmap=cmap)
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=ax, orientation="vertical", pad=0.01, fraction=0.03)
+    cbar = fig.colorbar(sm, ax=ax, orientation="vertical", boundaries=_BOUNDS,
+                        ticks=_BOUNDS, pad=0.01, fraction=0.03)
     cbar.set_label("score: safe (green) → vulnerable (red)")
+    fig.text(0.5, 0.01, "grey = comment", ha="center", fontsize=9, color="#444")
+    fig.tight_layout(rect=[0, 0.03, 1, 1])
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=140, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return out_path
+
+
+def bandit_findings(code: str) -> dict:
+    #Run Bandit once on the whole file; return {line_index: [test_id, ...]}.
+    from pipeline.stage0_bandit import _write_temp_py, _run_bandit_on_file, _parse_bandit_json
+    path = _write_temp_py(code)
+    try:
+        issues = _parse_bandit_json(_run_bandit_on_file(path))
+    except Exception:
+        issues = []
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+    by_line = defaultdict(list)
+    for it in issues:
+        ln = it.get("line_number")
+        if ln is not None:
+            by_line[ln - 1].append(it.get("test_id", "?"))
+    return by_line
+
+
+def render_bandit_png(code, by_line, comments, out_path: Path, title: str):
+    #Stage 0: show each line with the Bandit test ID(s) it triggered (flagged lines in red)
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+    except ImportError:
+        return None
+    lines = code.split("\n")
+    n = len(lines)
+    plt, fig, ax = _new_fig(n)
+    for i, line in enumerate(lines):
+        y = n - 1 - i
+        text = (line if line.strip() else " ")[:200]
+        ids = by_line.get(i, [])
+        if i in comments:
+            colour = _MPL["grey"]
+        elif ids:
+            colour = _MPL["red"]
+        else:
+            colour = _MPL["code"]
+        ax.text(0.03, y, text, va="center", ha="left", fontsize=9, family="monospace", color=colour)
+        if ids:
+            ax.text(0.995, y, ", ".join(sorted(set(ids))), va="center", ha="right",
+                    fontsize=8, family="monospace", color=_MPL["red"])
+    ax.set_title(title, fontsize=12, loc="left")
     fig.text(0.5, 0.01,
-             "grey = comment      black = escalated to next stage (undetermined)      "
-             "● red dot = TRUE vulnerable line (label)",
+             "red = Bandit-flagged line (its test ID is shown on the right)      grey = comment",
              ha="center", fontsize=9, color="#444")
     fig.tight_layout(rect=[0, 0.03, 1, 1])
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -361,40 +414,60 @@ def render_stage_png(rows, out_path: Path, title: str):
     return out_path
 
 
-def render_all_stage_pngs(code, records, window, stride, true_vuln, stem, ts, backend) -> list:
-    """Render one PNG per stage (0–3). Returns the list of saved paths."""
-    names = {0: "Stage 0 — Bandit", 1: f"Stage 1 — {backend}",
-             2: "Stage 2 — Llama", 3: "Stage 3 — Claude"}
-    comment_set = _comment_lines(code)
+def render_all_pngs(code, records, consolidated, window, stride, stem, ts, backend) -> list:
+    """Render the Bandit PNG (stage 0) + heatmap PNGs (stages 1/2/3).
+
+    records      — all windows (unconsolidated); used for stage 1 heatmap.
+    consolidated — merged windows that have stage2/3 scores; used for stages 2/3.
+    """
+    comments = comment_lines(code)
     out = []
-    for stage in (0, 1, 2, 3):
-        rows = _line_status(code, records, stage, window, stride, true_vuln, comment_set)
-        path = render_stage_png(
-            rows, PROJECT_ROOT / DEMO_RESULTS_DIR / f"pipeline_demo_{stem}_{ts}_stage{stage}.png",
-            f"{stem}.py  —  {names[stage]}")
-        if path:
-            out.append(path)
+    p0 = render_bandit_png(code, bandit_findings(code), comments,
+                           PROJECT_ROOT / DEMO_RESULTS_DIR / f"pipeline_demo_{stem}_{ts}_stage0.png",
+                           f"{stem}.py  —  Stage 0 (Bandit)")
+    if p0:
+        out.append(p0)
+    names = {1: f"Stage 1 — {backend}", 2: "Stage 2 — Llama", 3: "Stage 3 — Claude"}
+    # Stage 1 uses all windows; stages 2/3 use consolidated (they carry the scores).
+    recs_by_stage = {1: records, 2: consolidated, 3: consolidated}
+    for stage in (1, 2, 3):
+        scores = _line_scores(code, recs_by_stage[stage], stage, window, stride)
+        p = render_heatmap_png(code, scores, comments,
+                               PROJECT_ROOT / DEMO_RESULTS_DIR / f"pipeline_demo_{stem}_{ts}_stage{stage}.png",
+                               f"{stem}.py  —  {names[stage]}")
+        if p:
+            out.append(p)
     return out
 
 
-# ---------------------------------------------------------------------------
+
 # Main
-# ---------------------------------------------------------------------------
+
 
 def parse_args():
-    """Parse command-line arguments."""
+    #Parse command-line arguments.
     p = argparse.ArgumentParser(description="Full pipeline demo over a file from input_data/.")
     p.add_argument("--list", action="store_true", help="List .py files in input_data/ and exit.")
     p.add_argument("--file", type=int, default=None, help="Index of the file to scan (see --list).")
     p.add_argument("--backend", choices=["cnn_bilstm", "graphcodebert"], default=STAGE1_BACKEND,
                    help=f"Stage 1 backend (default: config STAGE1_BACKEND = {STAGE1_BACKEND}).")
-    p.add_argument("--window", type=int, default=10, help="Sliding window size in lines (default 10).")
-    p.add_argument("--stride", type=int, default=1, help="Stride between windows in lines (default 1).")
+    # Char-based windowing (default) matches the ~200-char VUDENC training windows.
+    # Line-based (--no-char-windows) is kept for comparison or if you retrain on larger windows.
+    p.add_argument("--char-windows", action="store_true", default=True,
+                   help="Use character-based windowing to match VUDENC training size (default: on).")
+    p.add_argument("--no-char-windows", dest="char_windows", action="store_false",
+                   help="Use line-based windowing instead (original behaviour).")
+    p.add_argument("--char-stride", type=int, default=50,
+                   help="Char stride between windows in char mode (default 50 ≈ 1 line). "
+                        f"Training used {VUDENC_BLOCK_STEP} but that creates too many windows for demo.")
+    # Line-based args, only used when --no-char-windows is set.
+    p.add_argument("--window", type=int, default=10, help="Window size in lines (line mode only, default 10).")
+    p.add_argument("--stride", type=int, default=1, help="Stride in lines (line mode only, default 1).")
     return p.parse_args()
 
 
 def main() -> int:
-    """Run the full pipeline demo. Returns a process exit code."""
+    #Run the full pipeline demo. Returns a process exit code.
     args = parse_args()
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -433,22 +506,36 @@ def main() -> int:
     backend = args.backend
     stage1 = stage1_cnn_bilstm if backend == "cnn_bilstm" else stage1_graphcodebert
 
-    code, true_vuln = load_labeled_code(target)
-    records = extract_all_vuln_types(code, target.name, args.window, args.stride)
-    print(f"Scanning {target.name}: {code.count(chr(10)) + 1} lines, {len(true_vuln)} labelled-vulnerable "
-          f"→ {len(records)} windows (window={args.window}, stride={args.stride}).\n")
+    code = load_code(target)
+    if args.char_windows:
+        records = extract_all_vuln_types_char(code, target.name,
+                                              char_length=VUDENC_BLOCK_LENGTH,
+                                              char_stride=args.char_stride)
+        window_desc = f"char_length={VUDENC_BLOCK_LENGTH}, char_stride={args.char_stride}"
+    else:
+        records = extract_all_vuln_types(code, target.name, args.window, args.stride)
+        window_desc = f"window={args.window} lines, stride={args.stride} lines"
+    print(f"Scanning {target.name}: {code.count(chr(10)) + 1} lines → "
+          f"{len(records)} windows ({window_desc}).\n")
     if not records:
         print("File too short for the window size — nothing to scan.")
         return 0
 
-    # Run the cascade with a progress bar per stage.
     for r in tqdm(records, desc="Stage 0  Bandit  ", unit="win"):
         stage0_bandit.run_bandit(r)
     for r in tqdm(records, desc="Stage 1  Model   ", unit="win"):
         stage1.predict(r)
     consolidated = consolidate(records)
+    # Use the per-type checkpoint threshold when available (cnn_bilstm stores it);
+    # fall back to the global config value for graphcodebert.
+    def _stage1_threshold(vuln_type: str) -> float:
+        if hasattr(stage1, "get_threshold"):
+            return stage1.get_threshold(vuln_type)
+        return STAGE1_ESCALATION_THRESHOLD
+
     to_stage2 = [r for r in consolidated
-                 if r.stage1_score is not None and r.stage1_score > STAGE1_ESCALATION_THRESHOLD]
+                 if r.stage1_score is not None
+                 and r.stage1_score > _stage1_threshold(r.vulnerability_type)]
     for r in tqdm(to_stage2, desc="Stage 2  Llama   ", unit="sec"):
         stage2_llama.predict(r)
     if STAGE3_ENABLED:
@@ -457,7 +544,7 @@ def main() -> int:
         for r in tqdm(to_stage3, desc="Stage 3  Claude  ", unit="sec"):
             stage3_claude.predict(r)
 
-    # Output 1: text report (terminal + .txt)
+    # Output 1: text report
     text = "\n".join(build_report(target.name, backend, records, consolidated))
     print("\n" + text)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -466,9 +553,10 @@ def main() -> int:
     txt_path = txt_dir / f"pipeline_demo_{target.stem}_{ts}.txt"
     txt_path.write_text(text + "\n", encoding="utf-8")
 
-    # Output 2: one PNG per stage
-    pngs = render_all_stage_pngs(code, records, args.window, args.stride, true_vuln,
-                                 target.stem, ts, backend)
+    # Output 2: PNGs
+    # Pass consolidated for stages 2/3 so the heatmaps show Llama/Claude scores,
+    # not just a fallback to stage1_score (consolidated is the only list that has them).
+    pngs = render_all_pngs(code, records, consolidated, args.window, args.stride, target.stem, ts, backend)
 
     print(f"\nSaved report → {txt_path}")
     for p in pngs:

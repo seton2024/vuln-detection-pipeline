@@ -6,8 +6,17 @@ Stage 3: Claude Haiku via Batch API.
 
 import os
 import json
+from pathlib import Path
 
 import config
+
+# Load .env from the project root so ANTHROPIC_API_KEY is available without
+# manually exporting it in every shell session.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
 from pipeline.contract import WindowRecord
 
 # Secret scrubbing lives in Person A's (done) Bandit module. Fall back to a

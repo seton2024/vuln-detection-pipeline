@@ -1,81 +1,78 @@
 ================================================================================================
-STAGE 1 SEARCH SUMMARY  (model: cnn_bilstm, objective: F2 — recall-favoring)
+STAGE 1 SEARCH SUMMARY  (model: cnn_bilstm, objective: F1 — recall-favoring)
 ================================================================================================
 
 ### sql  —  done
-  trial   0  F2=0.699 rec=0.835 prec=0.424 acc=0.768 th=0.5  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (81s)
-  trial   1  F2=0.675 rec=0.871 prec=0.355 acc=0.695 th=0.4  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (351s)
-  trial   2  F2=0.680 rec=0.812 prec=0.412 acc=0.760 th=0.4  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (264s)
-  trial   3  F2=0.724 rec=0.885 prec=0.419 acc=0.760 th=0.4  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (125s)
-  trial   4  F2=0.676 rec=0.899 prec=0.339 acc=0.669 th=0.3  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2320s)
-  trial   5  F2=0.727 rec=0.849 prec=0.463 acc=0.797 th=0.1  learning_rate=4.25e-04 hidden_dim=128 cnn_filters=32 dropout=0.102 batch_size=16 lstm_layers=1  (241s)
-  trial   6  F2=0.000 rec=0.000 prec=0.000 acc=0.000 th=0.5  learning_rate=1.19e-04 hidden_dim=128 cnn_filters=32 dropout=0.23 batch_size=64 lstm_layers=1  (17s) PRUNED
-  trial   7  F2=0.713 rec=0.832 prec=0.454 acc=0.791 th=0.1  learning_rate=1.38e-03 hidden_dim=256 cnn_filters=64 dropout=0.11 batch_size=64 lstm_layers=2  (480s)
-  BEST: val_F2=0.7273  threshold=0.1  learning_rate=4.25e-04 hidden_dim=128 cnn_filters=32 dropout=0.102 batch_size=16 lstm_layers=1
-  TEST @th=0.1: F2=0.701  recall=0.815  precision=0.449  f1=0.579  acc=0.788  (n=6000)
+  trial   0  F1=0.633 rec=0.748 prec=0.549 acc=0.846 th=0.7  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (85s)
+  trial   1  F1=0.579 rec=0.641 prec=0.528 acc=0.834 th=0.75  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (400s)
+  trial   2  F1=0.602 rec=0.734 prec=0.511 acc=0.827 th=0.65  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (324s)
+  trial   3  F1=0.633 rec=0.756 prec=0.544 acc=0.844 th=0.8  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (182s)
+  trial   4  F1=0.615 rec=0.756 prec=0.518 acc=0.831 th=0.6  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1733s)
+  BEST: val_F1=0.6335  threshold=0.7  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1
+  TEST @th=0.7: F1=0.603  recall=0.683  precision=0.539  f1=0.603  acc=0.839  (n=6000)
 
 ### xss  —  done
-  trial   0  F2=0.799 rec=0.877 prec=0.589 acc=0.922 th=0.5  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (155s)
-  trial   1  F2=0.764 rec=0.910 prec=0.466 acc=0.880 th=0.3  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (559s)
-  trial   2  F2=0.785 rec=0.872 prec=0.561 acc=0.914 th=0.45  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (560s)
-  trial   3  F2=0.804 rec=0.881 prec=0.594 acc=0.924 th=0.4  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (189s)
-  trial   4  F2=0.371 rec=1.000 prec=0.105 acc=0.105 th=0.05  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (4000s)
-  BEST: val_F2=0.8038  threshold=0.4  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.4: F2=0.810  recall=0.894  precision=0.588  f1=0.709  acc=0.923  (n=6000)
+  trial   0  F1=0.743 rec=0.891 prec=0.637 acc=0.935 th=0.85  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (161s)
+  trial   1  F1=0.674 rec=0.744 prec=0.616 acc=0.924 th=0.85  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (576s)
+  trial   2  F1=0.731 rec=0.863 prec=0.634 acc=0.933 th=0.55  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (664s)
+  trial   3  F1=0.825 rec=0.881 prec=0.775 acc=0.961 th=0.85  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (226s)
+  trial   4  F1=0.772 rec=0.853 prec=0.706 acc=0.947 th=0.8  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1805s)
+  BEST: val_F1=0.8248  threshold=0.85  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.85: F1=0.823  recall=0.886  precision=0.768  f1=0.823  acc=0.960  (n=6000)
 
 ### command_injection  —  done
-  trial   0  F2=0.722 rec=0.814 prec=0.497 acc=0.875 th=0.6  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (132s)
-  trial   1  F2=0.666 rec=0.757 prec=0.451 acc=0.856 th=0.7  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (480s)
-  trial   2  F2=0.676 rec=0.785 prec=0.434 acc=0.847 th=0.8  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (500s)
-  trial   3  F2=0.789 rec=0.834 prec=0.650 acc=0.924 th=0.6  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (180s)
-  trial   4  F2=0.684 rec=0.834 prec=0.399 acc=0.824 th=0.7  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2792s)
-  BEST: val_F2=0.7893  threshold=0.6  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.6: F2=0.759  recall=0.803  precision=0.623  f1=0.702  acc=0.916  (n=6000)
+  trial   0  F1=0.750 rec=0.737 prec=0.765 acc=0.940 th=0.9  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (148s)
+  trial   1  F1=0.612 rec=0.668 prec=0.565 acc=0.895 th=0.75  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (615s)
+  trial   2  F1=0.575 rec=0.757 prec=0.464 acc=0.862 th=0.95  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (546s)
+  trial   3  F1=0.802 rec=0.806 prec=0.799 acc=0.951 th=0.9  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (198s)
+  trial   4  F1=0.761 rec=0.818 prec=0.711 acc=0.936 th=0.7  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2878s)
+  BEST: val_F1=0.8024  threshold=0.9  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.9: F1=0.783  recall=0.775  precision=0.792  f1=0.783  acc=0.947  (n=6000)
 
 ### xsrf  —  done
-  trial   0  F2=0.666 rec=0.770 prec=0.431 acc=0.830 th=0.65  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (154s)
-  trial   1  F2=0.614 rec=0.825 prec=0.304 acc=0.717 th=0.45  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (472s)
-  trial   2  F2=0.644 rec=0.876 prec=0.313 acc=0.720 th=0.35  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (639s)
-  trial   3  F2=0.685 rec=0.788 prec=0.449 acc=0.839 th=0.45  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (205s)
-  trial   4  F2=0.604 rec=0.763 prec=0.330 acc=0.755 th=0.4  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2302s)
-  BEST: val_F2=0.6848  threshold=0.45  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.45: F2=0.660  recall=0.775  precision=0.413  f1=0.539  acc=0.818  (n=6000)
+  trial   0  F1=0.645 rec=0.796 prec=0.542 acc=0.880 th=0.75  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (174s)
+  trial   1  F1=0.531 rec=0.818 prec=0.393 acc=0.802 th=0.75  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (557s)
+  trial   2  F1=0.568 rec=0.701 prec=0.478 acc=0.854 th=0.75  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (702s)
+  trial   3  F1=0.708 rec=0.734 prec=0.684 acc=0.917 th=0.85  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (215s)
+  trial   4  F1=0.653 rec=0.839 prec=0.535 acc=0.878 th=0.85  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1863s)
+  BEST: val_F1=0.7077  threshold=0.85  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.85: F1=0.698  recall=0.758  precision=0.647  f1=0.698  acc=0.910  (n=6000)
 
 ### path_disclosure  —  done
-  trial   0  F2=0.627 rec=0.778 prec=0.353 acc=0.815 th=0.6  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (150s)
-  trial   1  F2=0.545 rec=0.733 prec=0.268 acc=0.745 th=0.75  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (578s)
-  trial   2  F2=0.610 rec=0.809 prec=0.307 acc=0.773 th=0.5  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (612s)
-  trial   3  F2=0.692 rec=0.782 prec=0.473 acc=0.877 th=0.3  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (212s)
-  trial   4  F2=0.438 rec=0.778 prec=0.160 acc=0.514 th=0.65  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (4025s)
-  BEST: val_F2=0.6918  threshold=0.3  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.3: F2=0.682  recall=0.781  precision=0.454  f1=0.574  acc=0.870  (n=6000)
+  trial   0  F1=0.641 rec=0.658 prec=0.625 acc=0.917 th=0.9  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (174s)
+  trial   1  F1=0.522 rec=0.551 prec=0.496 acc=0.886 th=0.75  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (615s)
+  trial   2  F1=0.594 rec=0.742 prec=0.495 acc=0.886 th=0.75  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (688s)
+  trial   3  F1=0.725 rec=0.827 prec=0.646 acc=0.929 th=0.75  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (220s)
+  trial   4  F1=0.697 rec=0.707 prec=0.688 acc=0.931 th=0.6  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1433s)
+  BEST: val_F1=0.7251  threshold=0.75  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.75: F1=0.705  recall=0.818  precision=0.620  f1=0.705  acc=0.923  (n=6000)
 
 ### open_redirect  —  done
-  trial   0  F2=0.746 rec=0.849 prec=0.503 acc=0.836 th=0.55  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (164s)
-  trial   1  F2=0.665 rec=0.868 prec=0.344 acc=0.703 th=0.3  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (568s)
-  trial   2  F2=0.688 rec=0.843 prec=0.396 acc=0.760 th=0.6  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (611s)
-  trial   3  F2=0.777 rec=0.852 prec=0.574 acc=0.871 th=0.2  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (201s)
-  trial   4  F2=0.591 rec=0.750 prec=0.319 acc=0.693 th=0.2  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2977s)
-  BEST: val_F2=0.777  threshold=0.2  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.2: F2=0.756  recall=0.827  precision=0.562  f1=0.669  acc=0.864  (n=6000)
+  trial   0  F1=0.682 rec=0.816 prec=0.585 acc=0.874 th=0.75  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (182s)
+  trial   1  F1=0.605 rec=0.599 prec=0.610 acc=0.870 th=0.65  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (526s)
+  trial   2  F1=0.630 rec=0.750 prec=0.544 acc=0.854 th=0.35  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (646s)
+  trial   3  F1=0.745 rec=0.846 prec=0.666 acc=0.904 th=0.65  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (176s)
+  trial   4  F1=0.740 rec=0.762 prec=0.719 acc=0.911 th=0.6  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1402s)
+  BEST: val_F1=0.7454  threshold=0.65  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.65: F1=0.752  recall=0.851  precision=0.673  f1=0.752  acc=0.907  (n=6000)
 
 ### remote_code_execution  —  done
-  trial   0  F2=0.726 rec=0.798 prec=0.532 acc=0.901 th=0.8  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (195s)
-  trial   1  F2=0.663 rec=0.757 prec=0.444 acc=0.870 th=0.85  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (553s)
-  trial   2  F2=0.667 rec=0.803 prec=0.398 acc=0.846 th=0.75  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (630s)
-  trial   3  F2=0.769 rec=0.853 prec=0.550 acc=0.908 th=0.65  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (176s)
-  trial   4  F2=0.664 rec=0.766 prec=0.433 acc=0.865 th=0.8  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (2139s)
-  BEST: val_F2=0.7686  threshold=0.65  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
-  TEST @th=0.65: F2=0.789  recall=0.862  precision=0.590  f1=0.701  acc=0.920  (n=6000)
+  trial   0  F1=0.761 rec=0.849 prec=0.690 acc=0.942 th=0.85  learning_rate=1.33e-04 hidden_dim=64 cnn_filters=32 dropout=0.446 batch_size=32 lstm_layers=1  (190s)
+  trial   1  F1=0.632 rec=0.587 prec=0.684 acc=0.925 th=0.95  learning_rate=4.34e-05 hidden_dim=256 cnn_filters=32 dropout=0.345 batch_size=64 lstm_layers=2  (586s)
+  trial   2  F1=0.665 rec=0.803 prec=0.568 acc=0.912 th=0.95  learning_rate=3.97e-05 hidden_dim=128 cnn_filters=32 dropout=0.48 batch_size=16 lstm_layers=2  (629s)
+  trial   3  F1=0.843 rec=0.876 prec=0.813 acc=0.965 th=0.45  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1  (185s)
+  trial   4  F1=0.786 rec=0.798 prec=0.773 acc=0.953 th=0.8  learning_rate=6.58e-03 hidden_dim=256 cnn_filters=64 dropout=0.23 batch_size=64 lstm_layers=1  (1022s)
+  BEST: val_F1=0.8433  threshold=0.45  learning_rate=2.09e-04 hidden_dim=128 cnn_filters=32 dropout=0.225 batch_size=32 lstm_layers=1
+  TEST @th=0.45: F1=0.869  recall=0.907  precision=0.835  f1=0.869  acc=0.970  (n=6000)
 
 ------------------------------------------------------------------------------------------------
-                  type    val_F2   test_F2  test_rec  test_prec  test_acc  trials
+                  type    val_F1   test_F1  test_rec  test_prec  test_acc  trials
 ------------------------------------------------------------------------------------------------
-                   sql     0.727     0.701     0.815      0.449     0.788       8
-                   xss     0.804     0.810     0.894      0.588     0.923       5
-     command_injection     0.789     0.759     0.803      0.623     0.916       5
-                  xsrf     0.685     0.660     0.775      0.413     0.818       5
-       path_disclosure     0.692     0.682     0.781      0.454     0.870       5
-         open_redirect     0.777     0.756     0.827      0.562     0.864       5
- remote_code_execution     0.769     0.789     0.862      0.590     0.920       5
+                   sql     0.633     0.603     0.683      0.539     0.839       5
+                   xss     0.825     0.823     0.886      0.768     0.960       5
+     command_injection     0.802     0.783     0.775      0.792     0.947       5
+                  xsrf     0.708     0.698     0.758      0.647     0.910       5
+       path_disclosure     0.725     0.705     0.818      0.620     0.923       5
+         open_redirect     0.745     0.752     0.851      0.673     0.907       5
+ remote_code_execution     0.843     0.869     0.907      0.835     0.970       5
 ================================================================================================

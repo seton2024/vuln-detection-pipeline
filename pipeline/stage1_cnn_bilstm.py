@@ -201,12 +201,19 @@ def build_classifier(hp, device):
     return model.to(device)
 
 
-def compute_pos_weight(labels, device):
-    """pos_weight for weighted BCE = (#safe / #vulnerable), to counter class imbalance."""
+def compute_pos_weight(labels, device, max_weight: float = 2.0):
+    """pos_weight for weighted BCE = min(#safe / #vulnerable, max_weight).
+
+    Capped at max_weight (default 2.0) to prevent extreme imbalance from
+    pushing raw sigmoid outputs so high that the 0.5 threshold flags everything.
+    With balanced 50/50 training data pos_weight ≈ 1.0 anyway, so this cap
+    only matters if you train on the natural ~10-18% vulnerable VUDENC ratio.
+    Set max_weight=1.0 to disable class weighting entirely.
+    """
     import torch
     pos = sum(1 for l in labels if l == 1)
     neg = len(labels) - pos
-    weight = (neg / pos) if pos > 0 else 1.0
+    weight = min((neg / pos) if pos > 0 else 1.0, max_weight)
     return torch.tensor([weight], device=device, dtype=torch.float32)
 
 
@@ -225,19 +232,20 @@ def run_classifier(classifier, emb_list, device, batch_size=64):
 
 def fit_classifier(classifier, emb_list, labels, hp, epochs, batch_size, device,
                    val_emb=None, val_labels=None, trial=None, optuna_mod=None,
-                   beta=2.0, verbose=False, label=""):
+                   beta=2.0, verbose=False, label="", pos_weight_max=1.0):
     """
     Train the head on cached embeddings with weighted BCEWithLogitsLoss.
 
     After each epoch, if a validation set is given, computes the best achievable
-    F-beta (beta>1 favors recall over precision — we care more about catching
-    every vulnerability than about a few false positives). That value is printed
-    (when verbose) and reported to the Optuna pruner, which kills hopeless trials.
+    F-beta and reports it to the Optuna pruner, which kills hopeless trials.
+
+    pos_weight_max: cap on the BCE pos_weight (1.0 = no class weighting, which is
+    correct when training data is already 50/50 balanced).
     """
     import random
     import torch
 
-    pos_weight = compute_pos_weight(labels, device)
+    pos_weight = compute_pos_weight(labels, device, max_weight=pos_weight_max)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = torch.optim.AdamW(classifier.parameters(), lr=hp["learning_rate"])
 
@@ -336,6 +344,7 @@ def _load(vuln_type: str) -> Optional[dict]:
         _CACHE[vuln_type] = {
             "tokenizer": tokenizer, "encoder": encoder,
             "classifier": classifier, "max_length": ckpt.get("max_length", _MAX_LENGTH),
+            "threshold": ckpt.get("threshold", 0.5),
         }
     except Exception as e:
         print(f"[cnn_bilstm] Could not load model for {vuln_type!r}: {e}. "
@@ -364,6 +373,19 @@ def predict(record: WindowRecord) -> None:
         print(f"[cnn_bilstm] predict failed for {record.vulnerability_type!r}: {e}. "
               f"Using fallback score {_FALLBACK_SCORE}.")
         record.stage1_score = _FALLBACK_SCORE
+
+
+def get_threshold(vuln_type: str) -> float:
+    """Return the F-beta-optimal decision threshold for a type (from the checkpoint).
+
+    Falls back to 0.5 if no checkpoint is loaded. Use this in the runner instead
+    of the global STAGE1_ESCALATION_THRESHOLD to apply the threshold that was
+    actually chosen during training.
+    """
+    bundle = _load(vuln_type)
+    if bundle is None:
+        return 0.5
+    return bundle.get("threshold", 0.5)
 
 
 def train(vuln_type: str, epochs: int = 3, batch_size: int = 16,

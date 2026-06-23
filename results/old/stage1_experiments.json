@@ -1,17 +1,15 @@
 {
-  "started": "2026-06-23T00:56:19",
+  "started": "2026-06-21T16:57:04",
   "device": "cpu",
   "model": "cnn_bilstm",
   "config": {
-    "max_trials": null,
-    "hours_per_type": 0.5,
+    "trials": 60,
+    "hours_per_type": 1.0,
     "max_train_samples": 6000,
     "max_eval_samples": 2000,
     "max_length": 256,
     "cnn_epochs": 8,
-    "beta": 1.0,
-    "balance": true,
-    "pos_weight_max": 1.0
+    "beta": 2.0
   },
   "types": {
     "sql": {
@@ -31,13 +29,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.6335,
-          "val_f1": 0.6335,
-          "val_precision": 0.5494,
-          "val_recall": 0.7479,
-          "val_accuracy": 0.8455,
-          "threshold": 0.7,
-          "seconds": 85.3,
+          "val_f2": 0.6992,
+          "val_f1": 0.5623,
+          "val_precision": 0.4239,
+          "val_recall": 0.8347,
+          "val_accuracy": 0.768,
+          "threshold": 0.5,
+          "seconds": 80.7,
           "pruned": false
         },
         {
@@ -50,13 +48,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.579,
-          "val_f1": 0.579,
-          "val_precision": 0.5276,
-          "val_recall": 0.6415,
-          "val_accuracy": 0.8335,
-          "threshold": 0.75,
-          "seconds": 399.8,
+          "val_f2": 0.6749,
+          "val_f1": 0.5045,
+          "val_precision": 0.355,
+          "val_recall": 0.8711,
+          "val_accuracy": 0.6945,
+          "threshold": 0.4,
+          "seconds": 351.0,
           "pruned": false
         },
         {
@@ -69,13 +67,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.6023,
-          "val_f1": 0.6023,
-          "val_precision": 0.5107,
-          "val_recall": 0.7339,
-          "val_accuracy": 0.827,
-          "threshold": 0.65,
-          "seconds": 324.4,
+          "val_f2": 0.6804,
+          "val_f1": 0.5472,
+          "val_precision": 0.4125,
+          "val_recall": 0.8123,
+          "val_accuracy": 0.76,
+          "threshold": 0.4,
+          "seconds": 264.0,
           "pruned": false
         },
         {
@@ -88,13 +86,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.6331,
-          "val_f1": 0.6331,
-          "val_precision": 0.5444,
-          "val_recall": 0.7563,
-          "val_accuracy": 0.8435,
-          "threshold": 0.8,
-          "seconds": 182.3,
+          "val_f2": 0.7241,
+          "val_f1": 0.5689,
+          "val_precision": 0.4191,
+          "val_recall": 0.8852,
+          "val_accuracy": 0.7605,
+          "threshold": 0.4,
+          "seconds": 124.6,
           "pruned": false
         },
         {
@@ -107,36 +105,93 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.615,
-          "val_f1": 0.615,
-          "val_precision": 0.5182,
-          "val_recall": 0.7563,
-          "val_accuracy": 0.831,
-          "threshold": 0.6,
-          "seconds": 1733.4,
+          "val_f2": 0.6761,
+          "val_f1": 0.4927,
+          "val_precision": 0.3393,
+          "val_recall": 0.8992,
+          "val_accuracy": 0.6695,
+          "threshold": 0.3,
+          "seconds": 2319.5,
+          "pruned": false
+        },
+        {
+          "number": 5,
+          "params": {
+            "learning_rate": 0.00042470585622618684,
+            "hidden_dim": 128,
+            "cnn_filters": 32,
+            "dropout": 0.10220884684944097,
+            "batch_size": 16,
+            "lstm_layers": 1
+          },
+          "val_f2": 0.7273,
+          "val_f1": 0.5988,
+          "val_precision": 0.4626,
+          "val_recall": 0.8487,
+          "val_accuracy": 0.797,
+          "threshold": 0.1,
+          "seconds": 241.1,
+          "pruned": false
+        },
+        {
+          "number": 6,
+          "params": {
+            "learning_rate": 0.0001189589673755355,
+            "hidden_dim": 128,
+            "cnn_filters": 32,
+            "dropout": 0.23007332881069884,
+            "batch_size": 64,
+            "lstm_layers": 1
+          },
+          "val_f2": 0.0,
+          "val_f1": 0.0,
+          "val_precision": 0.0,
+          "val_recall": 0.0,
+          "val_accuracy": 0.0,
+          "threshold": 0.5,
+          "seconds": 16.7,
+          "pruned": true
+        },
+        {
+          "number": 7,
+          "params": {
+            "learning_rate": 0.0013795402040204172,
+            "hidden_dim": 256,
+            "cnn_filters": 64,
+            "dropout": 0.11016765069763808,
+            "batch_size": 64,
+            "lstm_layers": 2
+          },
+          "val_f2": 0.7133,
+          "val_f1": 0.5875,
+          "val_precision": 0.4541,
+          "val_recall": 0.8319,
+          "val_accuracy": 0.7915,
+          "threshold": 0.1,
+          "seconds": 480.2,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_sql.pt",
+      "model_path": "models\\cnn_bilstm_sql.pt",
       "best": {
         "params": {
-          "learning_rate": 0.0001329291894316216,
-          "hidden_dim": 64,
+          "learning_rate": 0.00042470585622618684,
+          "hidden_dim": 128,
           "cnn_filters": 32,
-          "dropout": 0.4464704583099741,
-          "batch_size": 32,
+          "dropout": 0.10220884684944097,
+          "batch_size": 16,
           "lstm_layers": 1
         },
-        "val_f2": 0.6335,
-        "threshold": 0.7
+        "val_f2": 0.7273,
+        "threshold": 0.1
       },
       "test": {
-        "threshold": 0.7,
-        "f2": 0.6027171675586661,
-        "f1": 0.6027171675586661,
-        "precision": 0.5390279823269514,
-        "recall": 0.6834733893557423,
-        "accuracy": 0.8391666666666666,
+        "threshold": 0.1,
+        "f2": 0.7008670520231213,
+        "f1": 0.5791044776119403,
+        "precision": 0.44907407407407407,
+        "recall": 0.8151260504201681,
+        "accuracy": 0.7885,
         "n": 6000
       }
     },
@@ -157,13 +212,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7431,
-          "val_f1": 0.7431,
-          "val_precision": 0.6373,
-          "val_recall": 0.891,
-          "val_accuracy": 0.935,
-          "threshold": 0.85,
-          "seconds": 161.1,
+          "val_f2": 0.7988,
+          "val_f1": 0.7048,
+          "val_precision": 0.5892,
+          "val_recall": 0.8768,
+          "val_accuracy": 0.9225,
+          "threshold": 0.5,
+          "seconds": 155.3,
           "pruned": false
         },
         {
@@ -176,13 +231,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.6738,
-          "val_f1": 0.6738,
-          "val_precision": 0.6157,
-          "val_recall": 0.7441,
-          "val_accuracy": 0.924,
-          "threshold": 0.85,
-          "seconds": 576.1,
+          "val_f2": 0.7643,
+          "val_f1": 0.6164,
+          "val_precision": 0.466,
+          "val_recall": 0.91,
+          "val_accuracy": 0.8805,
+          "threshold": 0.3,
+          "seconds": 559.2,
           "pruned": false
         },
         {
@@ -195,13 +250,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.7309,
-          "val_f1": 0.7309,
-          "val_precision": 0.6341,
-          "val_recall": 0.8626,
-          "val_accuracy": 0.933,
-          "threshold": 0.55,
-          "seconds": 664.2,
+          "val_f2": 0.785,
+          "val_f1": 0.6827,
+          "val_precision": 0.561,
+          "val_recall": 0.872,
+          "val_accuracy": 0.9145,
+          "threshold": 0.45,
+          "seconds": 560.1,
           "pruned": false
         },
         {
@@ -214,13 +269,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.8248,
-          "val_f1": 0.8248,
-          "val_precision": 0.775,
+          "val_f2": 0.8038,
+          "val_f1": 0.7099,
+          "val_precision": 0.5942,
           "val_recall": 0.8815,
-          "val_accuracy": 0.9605,
-          "threshold": 0.85,
-          "seconds": 225.9,
+          "val_accuracy": 0.924,
+          "threshold": 0.4,
+          "seconds": 189.3,
           "pruned": false
         },
         {
@@ -233,17 +288,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.7725,
-          "val_f1": 0.7725,
-          "val_precision": 0.7059,
-          "val_recall": 0.8531,
-          "val_accuracy": 0.947,
-          "threshold": 0.8,
-          "seconds": 1805.4,
+          "val_f2": 0.371,
+          "val_f1": 0.1909,
+          "val_precision": 0.1055,
+          "val_recall": 1.0,
+          "val_accuracy": 0.1055,
+          "threshold": 0.05,
+          "seconds": 4000.1,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_xss.pt",
+      "model_path": "models\\cnn_bilstm_xss.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -253,16 +308,16 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.8248,
-        "threshold": 0.85
+        "val_f2": 0.8038,
+        "threshold": 0.4
       },
       "test": {
-        "threshold": 0.85,
-        "f2": 0.8229243203526818,
-        "f1": 0.8229243203526818,
-        "precision": 0.7681755829903978,
-        "recall": 0.8860759493670886,
-        "accuracy": 0.9598333333333333,
+        "threshold": 0.4,
+        "f2": 0.8096875895672112,
+        "f1": 0.709353421217828,
+        "precision": 0.5879292403746098,
+        "recall": 0.8939873417721519,
+        "accuracy": 0.9228333333333333,
         "n": 6000
       }
     },
@@ -283,13 +338,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7505,
-          "val_f1": 0.7505,
-          "val_precision": 0.7647,
-          "val_recall": 0.7368,
-          "val_accuracy": 0.9395,
-          "threshold": 0.9,
-          "seconds": 148.4,
+          "val_f2": 0.722,
+          "val_f1": 0.6175,
+          "val_precision": 0.4975,
+          "val_recall": 0.8138,
+          "val_accuracy": 0.8755,
+          "threshold": 0.6,
+          "seconds": 131.9,
           "pruned": false
         },
         {
@@ -302,13 +357,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.6122,
-          "val_f1": 0.6122,
-          "val_precision": 0.5651,
-          "val_recall": 0.668,
-          "val_accuracy": 0.8955,
-          "threshold": 0.75,
-          "seconds": 615.3,
+          "val_f2": 0.6664,
+          "val_f1": 0.565,
+          "val_precision": 0.4506,
+          "val_recall": 0.7571,
+          "val_accuracy": 0.856,
+          "threshold": 0.7,
+          "seconds": 480.2,
           "pruned": false
         },
         {
@@ -321,13 +376,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.5754,
-          "val_f1": 0.5754,
-          "val_precision": 0.464,
-          "val_recall": 0.7571,
-          "val_accuracy": 0.862,
-          "threshold": 0.95,
-          "seconds": 545.7,
+          "val_f2": 0.676,
+          "val_f1": 0.5591,
+          "val_precision": 0.434,
+          "val_recall": 0.7854,
+          "val_accuracy": 0.847,
+          "threshold": 0.8,
+          "seconds": 500.0,
           "pruned": false
         },
         {
@@ -340,13 +395,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.8024,
-          "val_f1": 0.8024,
-          "val_precision": 0.7992,
-          "val_recall": 0.8057,
-          "val_accuracy": 0.951,
-          "threshold": 0.9,
-          "seconds": 197.9,
+          "val_f2": 0.7893,
+          "val_f1": 0.7305,
+          "val_precision": 0.6498,
+          "val_recall": 0.834,
+          "val_accuracy": 0.924,
+          "threshold": 0.6,
+          "seconds": 179.7,
           "pruned": false
         },
         {
@@ -359,17 +414,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.7608,
-          "val_f1": 0.7608,
-          "val_precision": 0.7113,
-          "val_recall": 0.8178,
-          "val_accuracy": 0.9365,
+          "val_f2": 0.6844,
+          "val_f1": 0.5393,
+          "val_precision": 0.3985,
+          "val_recall": 0.834,
+          "val_accuracy": 0.824,
           "threshold": 0.7,
-          "seconds": 2878.5,
+          "seconds": 2792.1,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_command_injection.pt",
+      "model_path": "models\\cnn_bilstm_command_injection.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -379,16 +434,16 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.8024,
-        "threshold": 0.9
+        "val_f2": 0.7893,
+        "threshold": 0.6
       },
       "test": {
-        "threshold": 0.9,
-        "f2": 0.7830832196452933,
-        "f1": 0.7830832196452933,
-        "precision": 0.7917241379310345,
-        "recall": 0.7746288798920378,
-        "accuracy": 0.947,
+        "threshold": 0.6,
+        "f2": 0.7591222250574127,
+        "f1": 0.7016509433962265,
+        "precision": 0.6230366492146597,
+        "recall": 0.8029689608636977,
+        "accuracy": 0.9156666666666666,
         "n": 6000
       }
     },
@@ -409,13 +464,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.645,
-          "val_f1": 0.645,
-          "val_precision": 0.5423,
-          "val_recall": 0.7956,
-          "val_accuracy": 0.88,
-          "threshold": 0.75,
-          "seconds": 174.5,
+          "val_f2": 0.6656,
+          "val_f1": 0.5531,
+          "val_precision": 0.4315,
+          "val_recall": 0.7701,
+          "val_accuracy": 0.8295,
+          "threshold": 0.65,
+          "seconds": 154.2,
           "pruned": false
         },
         {
@@ -428,13 +483,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.5308,
-          "val_f1": 0.5308,
-          "val_precision": 0.393,
-          "val_recall": 0.8175,
-          "val_accuracy": 0.802,
-          "threshold": 0.75,
-          "seconds": 557.2,
+          "val_f2": 0.6141,
+          "val_f1": 0.444,
+          "val_precision": 0.3038,
+          "val_recall": 0.8248,
+          "val_accuracy": 0.717,
+          "threshold": 0.45,
+          "seconds": 471.8,
           "pruned": false
         },
         {
@@ -447,13 +502,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.568,
-          "val_f1": 0.568,
-          "val_precision": 0.4776,
-          "val_recall": 0.7007,
-          "val_accuracy": 0.854,
-          "threshold": 0.75,
-          "seconds": 701.9,
+          "val_f2": 0.6441,
+          "val_f1": 0.4611,
+          "val_precision": 0.3129,
+          "val_recall": 0.8759,
+          "val_accuracy": 0.7195,
+          "threshold": 0.35,
+          "seconds": 639.1,
           "pruned": false
         },
         {
@@ -466,13 +521,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7077,
-          "val_f1": 0.7077,
-          "val_precision": 0.6837,
-          "val_recall": 0.7336,
-          "val_accuracy": 0.917,
-          "threshold": 0.85,
-          "seconds": 214.9,
+          "val_f2": 0.6848,
+          "val_f1": 0.5722,
+          "val_precision": 0.4491,
+          "val_recall": 0.7883,
+          "val_accuracy": 0.8385,
+          "threshold": 0.45,
+          "seconds": 205.0,
           "pruned": false
         },
         {
@@ -485,17 +540,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.6534,
-          "val_f1": 0.6534,
-          "val_precision": 0.5349,
-          "val_recall": 0.8394,
-          "val_accuracy": 0.878,
-          "threshold": 0.85,
-          "seconds": 1863.3,
+          "val_f2": 0.604,
+          "val_f1": 0.4604,
+          "val_precision": 0.3297,
+          "val_recall": 0.7628,
+          "val_accuracy": 0.755,
+          "threshold": 0.4,
+          "seconds": 2302.4,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_xsrf.pt",
+      "model_path": "models\\cnn_bilstm_xsrf.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -505,16 +560,16 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.7077,
-        "threshold": 0.85
+        "val_f2": 0.6848,
+        "threshold": 0.45
       },
       "test": {
-        "threshold": 0.85,
-        "f2": 0.6983771684387241,
-        "f1": 0.6983771684387241,
-        "precision": 0.6473029045643154,
-        "recall": 0.7582017010935601,
-        "accuracy": 0.9101666666666667,
+        "threshold": 0.45,
+        "f2": 0.6596360628618694,
+        "f1": 0.5390790029573299,
+        "precision": 0.41321243523316065,
+        "recall": 0.7752126366950183,
+        "accuracy": 0.8181666666666667,
         "n": 6000
       }
     },
@@ -535,13 +590,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.6407,
-          "val_f1": 0.6407,
-          "val_precision": 0.6245,
-          "val_recall": 0.6578,
-          "val_accuracy": 0.917,
-          "threshold": 0.9,
-          "seconds": 174.0,
+          "val_f2": 0.6272,
+          "val_f1": 0.4861,
+          "val_precision": 0.3535,
+          "val_recall": 0.7778,
+          "val_accuracy": 0.815,
+          "threshold": 0.6,
+          "seconds": 150.3,
           "pruned": false
         },
         {
@@ -554,13 +609,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.5221,
-          "val_f1": 0.5221,
-          "val_precision": 0.496,
-          "val_recall": 0.5511,
-          "val_accuracy": 0.8865,
+          "val_f2": 0.5446,
+          "val_f1": 0.3929,
+          "val_precision": 0.2683,
+          "val_recall": 0.7333,
+          "val_accuracy": 0.745,
           "threshold": 0.75,
-          "seconds": 615.1,
+          "seconds": 578.3,
           "pruned": false
         },
         {
@@ -573,13 +628,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.5943,
-          "val_f1": 0.5943,
-          "val_precision": 0.4955,
-          "val_recall": 0.7422,
-          "val_accuracy": 0.886,
-          "threshold": 0.75,
-          "seconds": 687.7,
+          "val_f2": 0.6099,
+          "val_f1": 0.4455,
+          "val_precision": 0.3074,
+          "val_recall": 0.8089,
+          "val_accuracy": 0.7735,
+          "threshold": 0.5,
+          "seconds": 612.4,
           "pruned": false
         },
         {
@@ -592,13 +647,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7251,
-          "val_f1": 0.7251,
-          "val_precision": 0.6458,
-          "val_recall": 0.8267,
-          "val_accuracy": 0.9295,
-          "threshold": 0.75,
-          "seconds": 219.9,
+          "val_f2": 0.6918,
+          "val_f1": 0.5896,
+          "val_precision": 0.4731,
+          "val_recall": 0.7822,
+          "val_accuracy": 0.8775,
+          "threshold": 0.3,
+          "seconds": 211.8,
           "pruned": false
         },
         {
@@ -611,17 +666,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.6974,
-          "val_f1": 0.6974,
-          "val_precision": 0.6883,
-          "val_recall": 0.7067,
-          "val_accuracy": 0.931,
-          "threshold": 0.6,
-          "seconds": 1432.9,
+          "val_f2": 0.4382,
+          "val_f1": 0.2648,
+          "val_precision": 0.1595,
+          "val_recall": 0.7778,
+          "val_accuracy": 0.514,
+          "threshold": 0.65,
+          "seconds": 4024.9,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_path_disclosure.pt",
+      "model_path": "models\\cnn_bilstm_path_disclosure.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -631,16 +686,16 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.7251,
-        "threshold": 0.75
+        "val_f2": 0.6918,
+        "threshold": 0.3
       },
       "test": {
-        "threshold": 0.75,
-        "f2": 0.7049808429118775,
-        "f1": 0.7049808429118773,
-        "precision": 0.6195286195286195,
-        "recall": 0.8177777777777778,
-        "accuracy": 0.923,
+        "threshold": 0.3,
+        "f2": 0.6824656824656824,
+        "f1": 0.5740740740740741,
+        "precision": 0.45391903531438416,
+        "recall": 0.7807407407407407,
+        "accuracy": 0.8696666666666667,
         "n": 6000
       }
     },
@@ -661,13 +716,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.6818,
-          "val_f1": 0.6818,
-          "val_precision": 0.5853,
-          "val_recall": 0.8163,
-          "val_accuracy": 0.8735,
-          "threshold": 0.75,
-          "seconds": 182.4,
+          "val_f2": 0.7464,
+          "val_f1": 0.6316,
+          "val_precision": 0.5027,
+          "val_recall": 0.8494,
+          "val_accuracy": 0.8355,
+          "threshold": 0.55,
+          "seconds": 164.4,
           "pruned": false
         },
         {
@@ -680,13 +735,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.6049,
-          "val_f1": 0.6049,
-          "val_precision": 0.6104,
-          "val_recall": 0.5994,
-          "val_accuracy": 0.87,
-          "threshold": 0.65,
-          "seconds": 525.7,
+          "val_f2": 0.6648,
+          "val_f1": 0.4923,
+          "val_precision": 0.3437,
+          "val_recall": 0.8675,
+          "val_accuracy": 0.703,
+          "threshold": 0.3,
+          "seconds": 568.1,
           "pruned": false
         },
         {
@@ -699,13 +754,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.6304,
-          "val_f1": 0.6304,
-          "val_precision": 0.5437,
-          "val_recall": 0.75,
-          "val_accuracy": 0.854,
-          "threshold": 0.35,
-          "seconds": 646.3,
+          "val_f2": 0.688,
+          "val_f1": 0.539,
+          "val_precision": 0.396,
+          "val_recall": 0.8434,
+          "val_accuracy": 0.7605,
+          "threshold": 0.6,
+          "seconds": 610.8,
           "pruned": false
         },
         {
@@ -718,13 +773,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7454,
-          "val_f1": 0.7454,
-          "val_precision": 0.6659,
-          "val_recall": 0.8464,
-          "val_accuracy": 0.904,
-          "threshold": 0.65,
-          "seconds": 175.7,
+          "val_f2": 0.777,
+          "val_f1": 0.6861,
+          "val_precision": 0.574,
+          "val_recall": 0.8524,
+          "val_accuracy": 0.8705,
+          "threshold": 0.2,
+          "seconds": 200.6,
           "pruned": false
         },
         {
@@ -737,17 +792,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.7398,
-          "val_f1": 0.7398,
-          "val_precision": 0.7188,
-          "val_recall": 0.762,
-          "val_accuracy": 0.911,
-          "threshold": 0.6,
-          "seconds": 1401.9,
+          "val_f2": 0.5906,
+          "val_f1": 0.4478,
+          "val_precision": 0.3192,
+          "val_recall": 0.75,
+          "val_accuracy": 0.693,
+          "threshold": 0.2,
+          "seconds": 2977.2,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_open_redirect.pt",
+      "model_path": "models\\cnn_bilstm_open_redirect.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -757,16 +812,16 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.7454,
-        "threshold": 0.65
+        "val_f2": 0.777,
+        "threshold": 0.2
       },
       "test": {
-        "threshold": 0.65,
-        "f2": 0.7517730496453902,
-        "f1": 0.75177304964539,
-        "precision": 0.6730158730158731,
-        "recall": 0.8514056224899599,
-        "accuracy": 0.9066666666666666,
+        "threshold": 0.2,
+        "f2": 0.7559633027522936,
+        "f1": 0.669374492282697,
+        "precision": 0.5620736698499318,
+        "recall": 0.8273092369477911,
+        "accuracy": 0.8643333333333333,
         "n": 6000
       }
     },
@@ -787,13 +842,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.7613,
-          "val_f1": 0.7613,
-          "val_precision": 0.6903,
-          "val_recall": 0.8486,
-          "val_accuracy": 0.942,
-          "threshold": 0.85,
-          "seconds": 190.3,
+          "val_f2": 0.7256,
+          "val_f1": 0.6385,
+          "val_precision": 0.5321,
+          "val_recall": 0.7982,
+          "val_accuracy": 0.9015,
+          "threshold": 0.8,
+          "seconds": 195.4,
           "pruned": false
         },
         {
@@ -806,13 +861,13 @@
             "batch_size": 64,
             "lstm_layers": 2
           },
-          "val_f2": 0.6321,
-          "val_f1": 0.6321,
-          "val_precision": 0.6845,
-          "val_recall": 0.5872,
-          "val_accuracy": 0.9255,
-          "threshold": 0.95,
-          "seconds": 586.5,
+          "val_f2": 0.6632,
+          "val_f1": 0.5593,
+          "val_precision": 0.4435,
+          "val_recall": 0.7569,
+          "val_accuracy": 0.87,
+          "threshold": 0.85,
+          "seconds": 552.6,
           "pruned": false
         },
         {
@@ -825,13 +880,13 @@
             "batch_size": 16,
             "lstm_layers": 2
           },
-          "val_f2": 0.6654,
-          "val_f1": 0.6654,
-          "val_precision": 0.5682,
+          "val_f2": 0.6669,
+          "val_f1": 0.5319,
+          "val_precision": 0.3977,
           "val_recall": 0.8028,
-          "val_accuracy": 0.912,
-          "threshold": 0.95,
-          "seconds": 629.3,
+          "val_accuracy": 0.846,
+          "threshold": 0.75,
+          "seconds": 630.1,
           "pruned": false
         },
         {
@@ -844,13 +899,13 @@
             "batch_size": 32,
             "lstm_layers": 1
           },
-          "val_f2": 0.8433,
-          "val_f1": 0.8433,
-          "val_precision": 0.8128,
-          "val_recall": 0.8761,
-          "val_accuracy": 0.9645,
-          "threshold": 0.45,
-          "seconds": 185.2,
+          "val_f2": 0.7686,
+          "val_f1": 0.6691,
+          "val_precision": 0.5503,
+          "val_recall": 0.8532,
+          "val_accuracy": 0.908,
+          "threshold": 0.65,
+          "seconds": 176.4,
           "pruned": false
         },
         {
@@ -863,17 +918,17 @@
             "batch_size": 64,
             "lstm_layers": 1
           },
-          "val_f2": 0.7856,
-          "val_f1": 0.7856,
-          "val_precision": 0.7733,
-          "val_recall": 0.7982,
-          "val_accuracy": 0.9525,
+          "val_f2": 0.6638,
+          "val_f1": 0.553,
+          "val_precision": 0.4326,
+          "val_recall": 0.7661,
+          "val_accuracy": 0.865,
           "threshold": 0.8,
-          "seconds": 1022.1,
+          "seconds": 2139.4,
           "pruned": false
         }
       ],
-      "model_path": "models\\cnn\\cnn_bilstm_remote_code_execution.pt",
+      "model_path": "models\\cnn_bilstm_remote_code_execution.pt",
       "best": {
         "params": {
           "learning_rate": 0.00020914981329035596,
@@ -883,19 +938,19 @@
           "batch_size": 32,
           "lstm_layers": 1
         },
-        "val_f2": 0.8433,
-        "threshold": 0.45
+        "val_f2": 0.7686,
+        "threshold": 0.65
       },
       "test": {
-        "threshold": 0.45,
-        "f2": 0.869309838472834,
-        "f1": 0.869309838472834,
-        "precision": 0.8349788434414669,
-        "recall": 0.9065849923430321,
-        "accuracy": 0.9703333333333334,
+        "threshold": 0.65,
+        "f2": 0.7893998878295008,
+        "f1": 0.7006845052893591,
+        "precision": 0.590146750524109,
+        "recall": 0.8621745788667687,
+        "accuracy": 0.9198333333333333,
         "n": 6000
       }
     }
   },
-  "finished": "2026-06-23T08:38:34"
+  "finished": "2026-06-22T02:48:20"
 }

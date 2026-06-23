@@ -58,8 +58,18 @@ def parse_args():
                    help="Max tokens fed to the encoder (lower = faster).")
     p.add_argument("--cnn-epochs", type=int, default=8,
                    help="Epochs per cnn_bilstm trial (epochs are not searched for that model).")
-    p.add_argument("--beta", type=float, default=2.0,
-                   help="F-beta to optimize. >1 favors recall (catch all vulns) over precision. Default 2.")
+    p.add_argument("--beta", type=float, default=1.0,
+                   help="F-beta to optimize. 1.0 = balanced F1 (recommended with --balance). "
+                        ">1 favors recall over precision. Default: 1.0.")
+    p.add_argument("--trials", type=int, default=None,
+                   help="Max Optuna trials per type. None = unlimited (controlled by --hours-per-type).")
+    p.add_argument("--balance", action="store_true", default=True,
+                   help="Force 50/50 vulnerable/safe training split (default: True). "
+                        "Use --no-balance to preserve the natural VUDENC ratio (~10-18%% vuln).")
+    p.add_argument("--no-balance", dest="balance", action="store_false")
+    p.add_argument("--pos-weight-max", type=float, default=1.0,
+                   help="Cap on BCE pos_weight. 1.0 = no class weighting (best with --balance). "
+                        "Raise only if using --no-balance. Default: 1.0.")
     p.add_argument("--results-file", default=os.path.join(STAGE1_RESULTS_DIR, "stage1_experiments.json"))
     p.add_argument("--storage", default=os.path.join(STAGE1_RESULTS_DIR, "optuna_stage1.db"),
                    help="SQLite file for Optuna (enables resume). Empty string = in-memory.")
@@ -71,19 +81,34 @@ def parse_args():
 # Shared helpers
 
 
-def _subsample(records, max_n, seed):
-    #Return at most max_n records, keeping the vulnerable/safe ratio roughly intact.
+def _subsample(records, max_n, seed, balance=False):
+    """Return at most max_n records.
+
+    balance=True forces 50/50 vulnerable/safe sampling regardless of the natural
+    ratio. This is the main lever against the VUDENC imbalance (~10-18% vulnerable)
+    which otherwise drives pos_weight to 6-9x and causes the model to flag
+    everything as vulnerable.
+    """
     import random
-    if max_n is None or len(records) <= max_n:
-        return list(records)
     rng = random.Random(seed)
     pos = [r for r in records if r.label == 1]
     neg = [r for r in records if r.label == 0]
     if not pos or not neg:
-        return rng.sample(list(records), max_n)
-    ratio = len(pos) / len(records)
-    n_pos = min(len(pos), max(1, round(max_n * ratio)))
-    n_neg = min(len(neg), max_n - n_pos)
+        pool = list(records)
+        return rng.sample(pool, min(max_n, len(pool))) if max_n else pool
+
+    if balance:
+        # Equal classes: each side capped at min(available, max_n//2).
+        half = (max_n // 2) if max_n else min(len(pos), len(neg))
+        n_pos = min(len(pos), half)
+        n_neg = min(len(neg), half)
+    else:
+        if max_n is None or len(records) <= max_n:
+            return list(records)
+        ratio = len(pos) / len(records)
+        n_pos = min(len(pos), max(1, round(max_n * ratio)))
+        n_neg = min(len(neg), max_n - n_pos)
+
     sample = rng.sample(pos, n_pos) + rng.sample(neg, n_neg)
     rng.shuffle(sample)
     return sample
@@ -218,9 +243,13 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
         _save_results(args.results_file, results)
         return
 
-    train = _subsample(train, args.max_train_samples, seed=args.seed)
-    val_sub = _subsample(val, args.max_eval_samples, seed=args.seed)
-    test_sub = _subsample(test, max(args.max_eval_samples * 3, args.max_eval_samples), seed=7)
+    train = _subsample(train, args.max_train_samples, seed=args.seed, balance=args.balance)
+    # Val/test keep the natural ratio so evaluation metrics reflect real-world performance.
+    val_sub = _subsample(val, args.max_eval_samples, seed=args.seed, balance=False)
+    test_sub = _subsample(test, max(args.max_eval_samples * 3, args.max_eval_samples), seed=7, balance=False)
+    vuln_pct = 100.0 * sum(1 for r in train if r.label == 1) / len(train) if train else 0
+    print(f"[{vuln_type}] train balance: {vuln_pct:.1f}% vulnerable "
+          f"({'balanced 50/50' if args.balance else 'natural ratio'})", flush=True)
 
     if set(r.label for r in train) != {0, 1}:
         print(f"[{vuln_type}] SKIP: training subsample is single-class.", flush=True)
@@ -294,6 +323,7 @@ def run_study_for_type(vuln_type, args, device, results, optuna):
                     epochs=args.cnn_epochs, batch_size=hp["batch_size"], device=device,
                     val_emb=val_emb, val_labels=val_lab, trial=trial, optuna_mod=optuna,
                     beta=args.beta, verbose=True, label=f"trial {trial.number}",
+                    pos_weight_max=args.pos_weight_max,
                 )
                 probs = cnn.run_classifier(classifier, val_emb, device)
                 metrics = _eval_probs(probs, val_lab, args.beta)
@@ -520,11 +550,12 @@ def main() -> int:
     results = {
         "started": datetime.now().isoformat(timespec="seconds"),
         "device": device, "model": args.model,
-        "config": {"trials": args.trials, "hours_per_type": args.hours_per_type,
+        "config": {"max_trials": args.trials, "hours_per_type": args.hours_per_type,
                    "max_train_samples": args.max_train_samples,
                    "max_eval_samples": args.max_eval_samples,
                    "max_length": args.max_length, "cnn_epochs": args.cnn_epochs,
-                   "beta": args.beta},
+                   "beta": args.beta, "balance": args.balance,
+                   "pos_weight_max": args.pos_weight_max},
         "types": {},
     }
 

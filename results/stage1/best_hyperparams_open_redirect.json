@@ -1,9 +1,9 @@
 {
   "vuln_type": "open_redirect",
   "model": "cnn_bilstm",
-  "objective": "F2",
-  "best_val_f2": 0.7770455793520045,
-  "best_threshold": 0.2,
+  "objective": "F1",
+  "best_val_f2": 0.7453580901856763,
+  "best_threshold": 0.65,
   "best_params": {
     "learning_rate": 0.00020914981329035596,
     "hidden_dim": 128,

@@ -61,10 +61,11 @@ OLLAMA_MOCK = True # If True, Stage 2 returns a fake score instead of calling Ol
 
 
 #Stage 3 models
-STAGE3_ENABLED = os.environ.get("STAGE3_ENABLED", "0").strip() in ("1", "true", "True", "yes")
+#STAGE3_ENABLED = os.environ.get("STAGE3_ENABLED", "0").strip() in ("1", "true", "True", "yes")
+STAGE3_ENABLED = True
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 CLAUDE_MAX_TOKENS = 1024
-CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"
+CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"  # set this env var to your key — never hardcode keys in source
 
 # Paths
 VUDENC_DATA_DIR = "data/vudenc"
