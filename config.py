@@ -71,13 +71,9 @@ OLLAMA_MOCK = os.environ.get("OLLAMA_MOCK", "1").strip() in ("1", "true", "True"
 
 
 #Stage 3 models
-#STAGE3_ENABLED = os.environ.get("STAGE3_ENABLED", "0").strip() in ("1", "true", "True", "yes")
-STAGE3_ENABLED = True
+STAGE3_ENABLED = os.environ.get("STAGE3_ENABLED", "0").strip() in ("1", "true", "True", "yes")
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 CLAUDE_MAX_TOKENS = 1024
-# NAME of the environment variable that holds the Anthropic API key — NOT the
-# key itself. Put the real key in a local .env file (git-ignored) or export it:
-#   export ANTHROPIC_API_KEY=sk-ant-...
 CLAUDE_API_KEY_ENV = "ANTHROPIC_API_KEY"
 
 # Paths

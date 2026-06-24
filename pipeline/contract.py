@@ -28,6 +28,7 @@ class WindowRecord:
       bandit_flag       - Stage 0: True if Bandit found a relevant issue
       stage1_score      - Stage 1: 0.0–1.0 confidence from GraphCodeBERT
       stage2_score      - Stage 2: 0.0–1.0 confidence from Llama
+      stage2_findings   - Stage 2: line-level findings when score > STAGE2_SAFE_THRESHOLD
       stage3_verdict    - Stage 3: final verdict from Claude ("vulnerable"/"not_vulnerable")
       stage3_findings   - Stage 3: optional list of line-level finding dicts
     """
@@ -45,6 +46,7 @@ class WindowRecord:
     bandit_flag: bool = False
     stage1_score: Optional[float] = None
     stage2_score: Optional[float] = None
+    stage2_findings: Optional[list[dict]] = None
     stage3_verdict: Optional[Literal["vulnerable", "not_vulnerable"]] = None
     stage3_findings: Optional[list[dict]] = None
 

@@ -115,9 +115,9 @@ def _get_model_class():
     return _MODEL_CLASS
 
 
-# ---------------------------------------------------------------------------
+
 # Frozen encoder + embedding helpers (shared by predict, train, and the search)
-# ---------------------------------------------------------------------------
+
 
 def _load_encoder(device="cpu"):
     #Load and FREEZE the GraphCodeBERT encoder + tokenizer once; cache and reuse.
@@ -173,7 +173,7 @@ def embed_records(records, device, max_length, batch_size=32, label=""):
 
 
 def collate(emb_list, device):
-    """Pad a list of [len_i,768] tensors into (padded [B,Tmax,768], mask [B,Tmax])."""
+    #Pad a list of [len_i,768] tensors into (padded [B,Tmax,768], mask [B,Tmax]).
     import torch
     lengths = [e.size(0) for e in emb_list]
     t_max = max(lengths) if lengths else 1
@@ -188,7 +188,7 @@ def collate(emb_list, device):
 
 
 def build_classifier(hp, device):
-    """Construct a CNNBiLSTMClassifier from a hyperparameter dict and move to device."""
+    #Construct a CNNBiLSTMClassifier from a hyperparameter dict and move to device.
     cls = _get_model_class()
     model = cls(
         embed_dim=768,
@@ -218,7 +218,7 @@ def compute_pos_weight(labels, device, max_weight: float = 2.0):
 
 
 def run_classifier(classifier, emb_list, device, batch_size=64):
-    """Return predicted probabilities (after sigmoid) for a list of cached embeddings."""
+    #Return predicted probabilities (after sigmoid) for a list of cached embeddings.
     import torch
     classifier.eval()
     probs = []
