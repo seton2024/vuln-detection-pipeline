@@ -65,7 +65,7 @@ def _fmt(value, nd=3):
     return "-" if value is None else (f"{value:.{nd}f}" if isinstance(value, float) else str(value))
 
 
-_ADVICE_COL = 80   # max chars for the advice column before truncation
+_ADVICE_COL = 1000   # max chars for the advice column before truncation
 
 
 def _build_findings_map(record) -> dict[int, str]:

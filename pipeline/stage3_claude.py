@@ -42,35 +42,64 @@ markdown code fences and do NOT add any text before or after the JSON:
   "findings": [
     {
       "line_in_window": <int, 1-indexed>,
-      "code": "<the exact bad line>",
+      "code": "<the exact bad line — escape any double-quote characters as \\\" >",
       "reason": "<why this is a vulnerability>",
       "fix": "<concrete fix suggestion>"
     }
   ]
 }
-If not vulnerable, return an empty findings array."""
+If not vulnerable, return an empty findings array.
+IMPORTANT: all string values must be valid JSON strings. Escape every double-quote
+character that appears inside a string value as \\\" (backslash-quote)."""
 
 
 def _extract_json(text: str) -> dict:
     """Parse the model reply into a dict, tolerating markdown fences / stray prose.
 
-    Claude often wraps the JSON in ```json ... ``` fences and sometimes adds an
-    explanatory sentence AFTER the closing fence. We strip a leading fence, then
-    decode just the first balanced {...} object and ignore any trailing text.
+    Strategy:
+      1. Strip leading markdown fence if present.
+      2. Try standard JSON parsing (fast path).
+      3. If that fails (typically unescaped " inside a "code" field), fall back
+         to regex extraction of the verdict and per-finding reason/fix — skipping
+         the malformed "code" string that caused the failure.
     """
     text = (text or "").strip()
 
-    # Strip a leading markdown fence line (``` or ```json) if present.
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z0-9]*\s*", "", text)
 
-    # Decode the first JSON object starting at the first "{"; raw_decode stops
-    # at the end of that object and ignores trailing fences/prose.
     start = text.find("{")
-    if start == -1:
-        return json.loads(text)  # no object -> raise a clear JSONDecodeError
-    obj, _ = json.JSONDecoder().raw_decode(text[start:])
-    return obj
+    json_text = text[start:] if start != -1 else text
+
+    # Fast path: well-formed JSON
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(json_text)
+        return obj
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: extract verdict + safe fields via regex when the "code" field
+    # contains unescaped double-quotes that break the JSON parser.
+    verdict_match = re.search(r'"verdict"\s*:\s*"(vulnerable|not_vulnerable)"', json_text)
+    if not verdict_match:
+        raise json.JSONDecodeError("no verdict found", json_text, 0)
+
+    verdict = verdict_match.group(1)
+    findings = []
+    for m in re.finditer(
+        r'"line_in_window"\s*:\s*(\d+)'
+        r'.*?"reason"\s*:\s*"([^"]*)"'
+        r'.*?"fix"\s*:\s*"([^"]*)"',
+        json_text, re.DOTALL
+    ):
+        findings.append({
+            "line_in_window": int(m.group(1)),
+            "code": "",   # omitted — unescaped quotes made this field unparseable
+            "reason": m.group(2),
+            "fix": m.group(3),
+        })
+
+    return {"verdict": verdict, "findings": findings}
 
 
 def predict(record: WindowRecord) -> None:
